@@ -57,7 +57,7 @@ const MarkerItem = React.memo(function MarkerItem({
                             e.stopPropagation();
                             onClick?.(placed.region);
                         }}
-                        className="pointer-events-auto flex flex-col items-center gap-1 group cursor-pointer select-none"
+                        className="vl-marker pointer-events-auto flex flex-col items-center gap-1 group cursor-pointer select-none"
                         style={{ ['--mc' as string]: style.color }}
                     >
                         <span
@@ -152,7 +152,11 @@ const MapMarkers: React.FC<MapMarkersProps> = ({ regions, onRegionClick }) => {
             const name = el.querySelector<HTMLElement>('[data-marker-name]');
             if (name) {
                 const nameWant = showName ? '1' : '0';
-                if (name.style.opacity !== nameWant) name.style.opacity = nameWant;
+                if (name.style.opacity !== nameWant) {
+                    name.style.opacity = nameWant;
+                    // Gizli isim tıklamayı yakalamasın (altındaki haritaya geçsin)
+                    name.style.pointerEvents = showName ? '' : 'none';
+                }
             }
         }
     });

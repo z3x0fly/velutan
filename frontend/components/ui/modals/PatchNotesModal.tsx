@@ -13,7 +13,10 @@ const PatchNotesModal = () => {
         try {
             hasSeen = !!localStorage.getItem(`seen_patch_${PATCH_VERSION}`);
         } catch {}
-        if (!hasSeen) setIsOpen(true);
+        if (hasSeen) return;
+        // Harita yüklenip yerleştikten sonra aç (ilk görüntüyü kapatmasın)
+        const t = setTimeout(() => setIsOpen(true), 4500);
+        return () => clearTimeout(t);
     }, []);
 
     const handleClose = () => {

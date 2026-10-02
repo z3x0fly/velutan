@@ -9,6 +9,7 @@ import { ensureAdmin } from './db';
 import regionsRouter from './routes/regions';
 import authRouter from './routes/auth';
 import panoramasRouter from './routes/panoramas';
+import territoriesRouter from './routes/territories';
 
 fs.mkdirSync(path.join(config.staticDir, 'images'), { recursive: true });
 ensureAdmin();
@@ -58,6 +59,7 @@ app.use(
 app.use('/auth', authRouter);
 app.use('/regions', regionsRouter);
 app.use('/panoramas', panoramasRouter);
+app.use('/territories', territoriesRouter);
 
 app.get('/', (_req, res) => {
     res.json({ message: 'Velutan World Map API' });

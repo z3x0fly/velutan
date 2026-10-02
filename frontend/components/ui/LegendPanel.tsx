@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronUp, Map, Navigation, Trash2, Play, Brush } from 'lucide-react';
+import { ChevronUp, Map, Navigation, Trash2, Play, Brush, MapPinned } from 'lucide-react';
+import PinsTab from './PinsTab';
+import RouteBreakdown from './RouteBreakdown';
+import type { RouteAnalysis } from '../map/travelAnalysis';
+import BordersSection from './BordersSection';
+import { pinStore, usePins } from '../map/pinStore';
 
 interface LegendPanelProps {
   onTypeSelect?: (type: string | null) => void;
@@ -14,8 +19,7 @@ interface LegendPanelProps {
   setTravelPath: (path: { x: number, y: number }[]) => void;
   travelSpeed: string;
   setTravelSpeed: (val: string) => void;
-  terrainType: string;
-  setTerrainType: (val: string) => void;
+  route: RouteAnalysis | null;
   startSimulation: () => void;
   stopSimulation: () => void;
   isSimulating: boolean;
@@ -31,15 +35,20 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
     setTravelPath,
     travelSpeed,
     setTravelSpeed,
-    terrainType,
-    setTerrainType,
+    route,
     startSimulation,
     stopSimulation,
     isSimulating,
     showBrush = false
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'legend' | 'travel' | 'draw'>('legend');
+  const [activeTab, setActiveTab] = useState<'legend' | 'travel' | 'pins' | 'draw'>('legend');
+  const { pins, placing } = usePins();
+
+  // Bir işarete haritadan tıklanınca defter sekmesi açılsın
+  useEffect(() => pinStore.subscribe(() => {
+    if (pinStore.get().activeId) { setActiveTab('pins'); setIsCollapsed(false); }
+  }), []);
 
   // Brush Controls
   const [paintMode, setPaintMode] = useState<'forest'|'autumn'|'clear'|null>(null);
@@ -88,7 +97,7 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
       <button 
         onClick={() => setIsCollapsed(!isCollapsed)}
         className={`absolute z-30 text-amber-500/60 hover:text-amber-500 transition-all duration-300 flex items-center justify-center
-          ${isCollapsed ? 'inset-0 w-full h-full' : 'top-3 right-3 p-1'}`}
+          ${isCollapsed ? 'inset-0 w-full h-full' : 'top-0 right-0 w-9 h-[49px] border-l border-amber-600/10'}`}
       >
         {isCollapsed ? (
           <div className="flex flex-col items-center gap-1 group translate-y-1">
@@ -102,27 +111,34 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
 
       {/* Tab Switcher */}
       {!isCollapsed && (
-        <div className="flex w-full border-b border-amber-600/20 bg-black/40">
+        <div className="flex w-full border-b border-amber-600/20 bg-black/40 pr-9">
            <button 
              onClick={() => setActiveTab('travel')}
-             className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all ${activeTab === 'travel' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+             className={`flex-1 py-4 flex items-center justify-center gap-1.5 transition-all ${activeTab === 'travel' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
            >
               <Navigation size={14} className={isTravelMode ? 'animate-pulse' : ''} />
-              <span className="text-[12px] font-black uppercase tracking-[0.2em]">Seyahat</span>
+              <span className="text-[12px] font-black uppercase tracking-[0.14em] whitespace-nowrap">Seyahat</span>
            </button>
            <button 
              onClick={() => setActiveTab('legend')}
-             className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all border-l border-amber-600/10 ${activeTab === 'legend' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+             className={`flex-1 py-4 flex items-center justify-center gap-1.5 transition-all border-l border-amber-600/10 ${activeTab === 'legend' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
            >
               <Map size={14} />
-              <span className="text-[12px] font-black uppercase tracking-[0.2em]">Lejant</span>
+              <span className="text-[12px] font-black uppercase tracking-[0.14em] whitespace-nowrap">Lejant</span>
+           </button>
+           <button
+             onClick={() => setActiveTab('pins')}
+             className={`flex-1 py-4 flex items-center justify-center gap-1.5 transition-all border-l border-amber-600/10 ${activeTab === 'pins' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+           >
+              <MapPinned size={14} className={placing ? 'animate-pulse text-amber-400' : ''} />
+              <span className="text-[12px] font-black uppercase tracking-[0.14em] whitespace-nowrap">Defter{pins.length ? <sup className="ml-0.5 text-[10px] text-amber-400">{pins.length}</sup> : null}</span>
            </button>
            {showBrush && <button 
              onClick={() => setActiveTab('draw')}
-             className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all border-l border-amber-600/10 ${activeTab === 'draw' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+             className={`flex-1 py-4 flex items-center justify-center gap-1.5 transition-all border-l border-amber-600/10 ${activeTab === 'draw' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
            >
               <Brush size={14} className={paintMode ? 'animate-pulse text-amber-400' : ''} />
-              <span className="text-[12px] font-black uppercase tracking-[0.2em]">Fırça</span>
+              <span className="text-[12px] font-black uppercase tracking-[0.14em] whitespace-nowrap">Fırça</span>
            </button>}
         </div>
       )}
@@ -166,8 +182,11 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                     </div>
                 ))}
             </div>
+            <BordersSection />
           </div>
         )}
+
+        {activeTab === 'pins' && <PinsTab />}
 
         {activeTab === 'travel' && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-left duration-300">
@@ -204,18 +223,8 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                    </div>
 
                    <div className="flex flex-col gap-2">
-                       <label className="text-[12px] font-black uppercase text-amber-600/60 tracking-widest">Arazi Tipi</label>
-                       <div className="grid grid-cols-3 gap-1">
-                           {['normal', 'rough', 'mountain'].map(v => (
-                               <button 
-                                 key={v}
-                                 onClick={() => setTerrainType(v)}
-                                 className={`py-2 text-[12px] font-black uppercase border transition-all ${terrainType === v ? 'bg-amber-600 text-white border-amber-400' : 'bg-zinc-900/50 text-zinc-600 border-zinc-800'}`}
-                               >
-                                  {v === 'normal' ? 'Düz' : v === 'rough' ? 'Sarp' : 'Dağ'}
-                               </button>
-                           ))}
-                       </div>
+                       <label className="text-[12px] font-black uppercase text-amber-600/60 tracking-widest">Arazi (rotadan)</label>
+                       <RouteBreakdown route={route} />
                    </div>
                 </div>
              </div>

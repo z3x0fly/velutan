@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useProgress } from '@react-three/drei';
+import { useLoadState } from '../map/loadStore';
 
 /**
  * Harita dokuları inerken görünen ilerleme göstergesi. Yavaş bağlantıda ya da zayıf cihazda
  * kullanıcı boş/siyah bir ekran yerine ne olduğunu görür.
  */
 export default function LoadingIndicator() {
-    const { active, progress } = useProgress();
+    const { active, progress } = useLoadState();
     const [visible, setVisible] = useState(true);
 
     useEffect(() => {

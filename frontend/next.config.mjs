@@ -8,6 +8,8 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     poweredByHeader: false,
+    // Barrel paketlerden yalnızca kullanılan modüller paketlensin (daha küçük JS, daha az ana iş parçacığı yükü)
+    experimental: { optimizePackageImports: ['lucide-react', '@react-three/drei'] },
     async headers() {
         return [
             { source: '/:path*', headers: securityHeaders },

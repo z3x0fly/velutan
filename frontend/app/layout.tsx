@@ -6,7 +6,7 @@ import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, KEYWORDS, SITE_NAME, SITE_URL } fro
 const inter = Inter({ subsets: ["latin", "latin-ext"] });
 // Başlık/düğme: gravür havası. Metin: eski kitap hissi, uzun lore için okunaklı.
 // next/font build sırasında sunucuya gömer (çalışma anında Google'a istek yok).
-const cinzel = Cinzel({ subsets: ["latin", "latin-ext"], weight: ["400", "600", "700", "900"], variable: "--font-display" });
+const cinzel = Cinzel({ subsets: ["latin", "latin-ext"], weight: ["400", "700"], variable: "--font-display" });
 const garamond = EB_Garamond({ subsets: ["latin", "latin-ext"], variable: "--font-book" });
 
 export const metadata: Metadata = {

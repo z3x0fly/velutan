@@ -5,7 +5,10 @@ import { createPortal } from 'react-dom';
 import { Compass, X } from 'lucide-react';
 import type { Region } from '../map/types';
 import { mediaUrl, parseLore } from '../map/media';
-import PanoramaViewer from './PanoramaViewer';
+import dynamic from 'next/dynamic';
+
+// three.js içerir: yalnızca 360° açılınca yüklenir
+const PanoramaViewer = dynamic(() => import('./PanoramaViewer'), { ssr: false });
 
 interface LorePanelProps {
   region: Region | null;

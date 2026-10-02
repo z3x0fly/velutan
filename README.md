@@ -53,7 +53,9 @@ velutan/
 - **Kamera:** Runeterra tarzı: uzaktan neredeyse tepeden bakar, yaklaştıkça eğilir. Zoom imlecin olduğu yere yapılır; touchpad pinch ve iki parmak kaydırma desteklenir.
 - **Kalite seviyeleri:** Cihazın GPU belleğine ve doku limitine göre 4K / 2K doku seçilir. WebGL bağlamı kaybolursa kurtarma ekranı çıkar.
 - **Kronikler ve 360°:** Bölgeye tıklayınca kronikler, karakter galerisi ve eşdikdörtgen (equirectangular) panoramalar açılır.
-- **Seyahat:** Rota çiz; mesafe, arazi tipi ve tempoya göre süre hesaplanır, yolcu araziyi takip ederek ilerler.
+- **Seyahat:** Rota çiz; geçtiğin zemin (düz, sarp, dağ, deniz) yükselti haritasından otomatik okunur. Süre her adımın zeminine ve seçtiğin tempoya göre hesaplanır; simülasyonda yolcu dağ geçidinde yavaşlar. Tıkladığın nokta, eğik bakışta bile yükseltili arazideki tam yerine konur.
+- **Seyyah Defteri:** Haritaya kendi işaretini bırak (kamp, görev, hazine, tehlike, buluşma, not), not düş, bağlantıyla arkadaşınla paylaş. İşaretler yalnızca senin tarayıcında saklanır.
+- **Sınırlar:** Krallık, eyalet, tehlikeli ya da kutsal topraklar haritada araziyle birlikte bükülen sınırlar olarak görünür; lejanttan aç/kapa, üzerine gel, tıkla ve oraya uç.
 - **Zar Tepsisi:** Sürüklenebilir panel; d4–d100, avantaj/dezavantaj, yetenek puanından bonus (5e), kritik başarı/başarısızlık.
 - **Cihaza göre kalite:** Ekran kartına göre yüksek / orta / düşük / asgari kademe. Zayıf cihazlarda harita yalnızca hareket ettirilince çizilir, boştayken işlemciyi yormaz; FPS düşerse kademe kendiliğinden hafifler.
 - **Bölge sayfaları:** Her bölgenin arama motorlarının okuyabildiği kendi sayfası (`/bolge/...`), kronik ve görselleriyle.
@@ -61,6 +63,7 @@ velutan/
 ### İçerik paneli (admin-panel)
 - **Roller:** *Yönetici* tüm içeriği ve kullanıcıları yönetir; *Editör* yalnızca içerik girer.
 - Bölge ekleme ve düzenleme, harita üzerinde koordinat seçme, lore metnine görsel ekleme.
+- Sınır çizimi: harita üzerinde çokgen çiz (köşe ekle, taşı, sil, geri al), türünü ve rengini seç.
 - 360° görüntü yükleme, sıralama ve açılış açısını ayarlama; parola değiştirme.
 
 ### API (backend)

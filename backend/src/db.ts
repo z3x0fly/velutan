@@ -42,6 +42,18 @@ db.exec(`
         created_at TEXT
     );
     CREATE INDEX IF NOT EXISTS ix_panoramas_region ON panoramas (region_id, sort);
+    -- Sınırlar: editörlerin harita üzerinde çizdiği krallık/bölge alanları (çokgen, kaynak harita pikseli)
+    CREATE TABLE IF NOT EXISTS territories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'kingdom',
+        color TEXT NOT NULL DEFAULT '#c9a24d',
+        points TEXT NOT NULL,
+        region_id INTEGER REFERENCES regions(id) ON DELETE SET NULL,
+        note TEXT,
+        sort INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT
+    );
 `);
 
 // Rol sütunu (eski kurulumlarda yok): mevcut kullanıcılar yönetici kalır

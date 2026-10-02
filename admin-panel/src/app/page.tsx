@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Compass, KeyRound, LogOut, MapPin, Plus, Search, Settings, ShieldAlert, Trash2, Users } from 'lucide-react';
+import { Compass, Hexagon, KeyRound, LogOut, MapPin, Plus, Search, Settings, ShieldAlert, Trash2, Users } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import RegionEditor from '@/components/admin/RegionEditor';
 import UsersTab from '@/components/admin/UsersTab';
 import AccountTab from '@/components/admin/AccountTab';
+import TerritoriesTab from '@/components/admin/TerritoriesTab';
 import { api, errorMessage, loadSession, mediaUrl, onUnauthorized, Region, Role, saveSession, Session } from '@/lib/api';
 
-type Tab = 'regions' | 'users' | 'account';
+type Tab = 'regions' | 'territories' | 'users' | 'account';
 
 function LoginForm({ onLogin }: { onLogin: (s: Session) => void }) {
     const [username, setUsername] = useState('');
@@ -127,6 +128,9 @@ export default function AdminPage() {
                         <button onClick={() => setTab('regions')} className={tabBtn('regions')}>
                             <MapPin size={14} className="mx-auto mb-1" /> Arşiv
                         </button>
+                        <button onClick={() => setTab('territories')} className={tabBtn('territories')}>
+                            <Hexagon size={14} className="mx-auto mb-1" /> Sınırlar
+                        </button>
                         {isAdmin && (
                             <button onClick={() => setTab('users')} className={tabBtn('users')}>
                                 <Users size={14} className="mx-auto mb-1" /> Yetkililer
@@ -197,6 +201,7 @@ export default function AdminPage() {
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-12 z-10">
                     {tab === 'users' && isAdmin && <UsersTab currentUser={session.username} />}
                     {tab === 'account' && <AccountTab session={session} />}
+                    {tab === 'territories' && <TerritoriesTab regions={regions} />}
                     {tab === 'regions' && selected !== null && (
                         <RegionEditor
                             regionId={selected}

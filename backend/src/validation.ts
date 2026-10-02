@@ -100,3 +100,72 @@ export function validatePanorama(body: unknown, partial: boolean): PanoramaResul
     }
     return { ok: true, value: out };
 }
+
+export const TERRITORY_KINDS = ['kingdom', 'province', 'wild', 'danger', 'sacred'] as const;
+
+export interface TerritoryInput {
+    name?: string;
+    kind?: string;
+    color?: string;
+    points?: string;
+    region_id?: number | null;
+    note?: string;
+    sort?: number;
+}
+
+type TerritoryResult = { ok: true; value: TerritoryInput } | { ok: false; error: string };
+
+/** Sınır çokgeni: 3-400 köşe, her köşe harita sınırları içinde; JSON olarak saklanır. */
+export function validateTerritory(body: unknown, partial: boolean): TerritoryResult {
+    if (!body || typeof body !== 'object') return { ok: false, error: 'Geçersiz gövde' };
+    const b = body as Record<string, unknown>;
+    const out: TerritoryInput = {};
+    if (b.name !== undefined) {
+        if (typeof b.name !== 'string' || !b.name.trim() || b.name.length > 120) return { ok: false, error: 'name geçersiz' };
+        out.name = b.name.trim();
+    }
+    if (b.note !== undefined && b.note !== null) {
+        if (typeof b.note !== 'string' || b.note.length > 2000) return { ok: false, error: 'note geçersiz' };
+        out.note = b.note.trim();
+    }
+    if (b.kind !== undefined) {
+        if (!(TERRITORY_KINDS as readonly unknown[]).includes(b.kind)) return { ok: false, error: `kind şunlardan biri olmalı: ${TERRITORY_KINDS.join(', ')}` };
+        out.kind = b.kind as string;
+    }
+    if (b.color !== undefined) {
+        if (typeof b.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(b.color)) return { ok: false, error: 'color #rrggbb olmalı' };
+        out.color = b.color.toLowerCase();
+    }
+    if (b.points !== undefined) {
+        const pts = b.points;
+        if (!Array.isArray(pts) || pts.length < 3 || pts.length > 400) return { ok: false, error: 'points 3-400 köşe olmalı' };
+        const clean: [number, number][] = [];
+        for (const p of pts) {
+            if (!Array.isArray(p) || p.length !== 2) return { ok: false, error: 'points [[x,y],...] biçiminde olmalı' };
+            const [x, y] = p.map(Number);
+            if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
+                return { ok: false, error: 'Köşe harita dışında' };
+            }
+            clean.push([Math.round(x), Math.round(y)]);
+        }
+        out.points = JSON.stringify(clean);
+    }
+    if (b.region_id !== undefined) {
+        if (b.region_id === null || b.region_id === '') out.region_id = null;
+        else {
+            const n = Number(b.region_id);
+            if (!Number.isInteger(n) || n <= 0) return { ok: false, error: 'region_id geçersiz' };
+            out.region_id = n;
+        }
+    }
+    if (b.sort !== undefined) {
+        const n = Number(b.sort);
+        if (!Number.isInteger(n) || n < 0 || n > 10000) return { ok: false, error: 'sort geçersiz' };
+        out.sort = n;
+    }
+    if (!partial) {
+        if (!out.name) return { ok: false, error: 'name zorunlu' };
+        if (!out.points) return { ok: false, error: 'points zorunlu' };
+    }
+    return { ok: true, value: out };
+}

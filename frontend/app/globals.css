@@ -156,3 +156,9 @@ html.map-page body {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(201, 163, 90, 0.7), transparent);
 }
+
+/* Seyahat durağı / yer işareti koyarken işaretçiler tıklamayı haritaya bırakır */
+html.map-picking .vl-marker,
+html.map-picking .vl-marker * {
+  pointer-events: none !important;
+}

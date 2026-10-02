@@ -17,7 +17,7 @@ const MapLayers = React.memo(({ settings }: { settings: QualitySettings }) => (
             <planeGeometry args={[WORLD_WIDTH * 4, WORLD_HEIGHT * 4]} />
             <meshBasicMaterial color="#0d1218" />
         </mesh>
-        <Terrain textureSize={settings.textureSize} segments={settings.terrainSegments} />
+        <Terrain textureSize={settings.textureSize} segments={settings.terrainSegments} normalMap={settings.tier === 'high' || settings.tier === 'medium'} />
         <Water animate={settings.waterAnimation} />
         {settings.treeFraction > 0 && <Forest fraction={settings.treeFraction} wind={settings.wind} />}
         <Labels />

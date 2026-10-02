@@ -11,22 +11,34 @@ import { mapAsset } from '../media';
 interface TerrainProps {
     textureSize: 4096 | 2048;
     segments: [number, number];
+    /** Işıklandırma detayı; zayıf kademede indirilmez */
+    normalMap?: boolean;
 }
+
+// 1x1 düz normal (normal haritası istenmediğinde)
+const FLAT_NORMAL = (() => {
+    if (typeof document === 'undefined') return null;
+    const t = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1);
+    t.needsUpdate = true;
+    return t;
+})();
 
 /**
  * Yükseltili zemin: isimsiz boyalı harita dokusu (su + kara + yollar + dağ çizimleri + çerçeve),
  * yükselti haritasıyla gerçek 3D röliefe dönüşür. İsimler ayrı katmandadır (Labels.tsx).
  */
-const Terrain = React.memo(({ textureSize: size, segments }: TerrainProps) => {
+const Terrain = React.memo(({ textureSize: size, segments, normalMap: withNormal = true }: TerrainProps) => {
     const { gl } = useThree();
     // Girdi nesnesi sabit olmalı: her render'da yeni nesne giderse drei dokuları yeniden
     // GPU'ya yükler (zoom sırasında 4096px dokunun sürekli yüklenmesi = kasma).
-    const urls = useMemo(
-        () => ({ map: mapAsset(`terrain_${size}.jpg`), height: HEIGHT_URL, normal: mapAsset('normal_1024.png') }),
-        [size],
-    );
-    const textures = useTexture(urls);
-    const { map, height, normal } = textures;
+    const urls = useMemo(() => {
+        const u: Record<string, string> = { map: mapAsset(`terrain_${size}.webp`), height: HEIGHT_URL };
+        if (withNormal) u.normal = mapAsset('normal_1024.webp');
+        return u;
+    }, [size, withNormal]);
+    const textures = useTexture(urls) as Record<string, THREE.Texture>;
+    const { map, height } = textures;
+    const normal = textures.normal ?? FLAT_NORMAL!;
 
     // Doku ayarları yalnızca bir kez (yükleme sonrası) yapılır
     useMemo(() => {

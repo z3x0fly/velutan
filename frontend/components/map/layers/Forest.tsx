@@ -22,12 +22,14 @@ const BASE_SCALE = 0.15;
 
 // Tür rengi + boyalı haritadaki sembol rengi karışımı (paleti korur, 3D'de okunur kalır)
 const KIND_COLOR: Record<TreeKind, THREE.Color> = {
-    [TreeKind.Pine]: new THREE.Color('#3d6633'),
-    [TreeKind.Broadleaf]: new THREE.Color('#6f8f3e'),
-    [TreeKind.SnowPine]: new THREE.Color('#cfdcd6'),
-    [TreeKind.Autumn]: new THREE.Color('#c27a2c'),
+    [TreeKind.Pine]: new THREE.Color('#2f6b3a'),
+    [TreeKind.Broadleaf]: new THREE.Color('#6a9a34'),
+    [TreeKind.SnowPine]: new THREE.Color('#d6e2dc'),
+    [TreeKind.Autumn]: new THREE.Color('#d0802a'),
 };
-const PAINT_MIX = 0.3;
+// Sonbahar ağaçlarının bir kısmı kızıl, bir kısmı altın sarısı
+const AUTUMN_ALT = new THREE.Color('#b8452a');
+const PAINT_MIX = 0.18;
 
 /** Geometriye yüksekliğe göre koyulaşan sabit renk ekler (sahte ortam gölgesi). */
 function colorize(geo: THREE.BufferGeometry, color: THREE.Color, top: number, aoStrength = 0.4) {
@@ -45,49 +47,79 @@ function colorize(geo: THREE.BufferGeometry, color: THREE.Color, top: number, ao
     return g;
 }
 
-const TRUNK = new THREE.Color('#4a3524');
+const TRUNK = new THREE.Color('#7a5638');
 const FOLIAGE = new THREE.Color('#ffffff'); // instanceColor ile boyanır
 const SNOW = new THREE.Color('#ffffff');
 
-function buildPine(snowy: boolean) {
-    const trunk = new THREE.CylinderGeometry(0.05, 0.08, 0.35, 5).translate(0, 0.17, 0);
-    const c1 = new THREE.ConeGeometry(0.36, 0.5, 7).translate(0, 0.48, 0);
-    const c2 = new THREE.ConeGeometry(0.28, 0.42, 7).translate(0, 0.74, 0);
-    const c3 = new THREE.ConeGeometry(0.18, 0.34, 7).translate(0, 0.98, 0);
-    const lower = snowy ? new THREE.Color('#8fa79a') : FOLIAGE;
-    return mergeGeometries([
-        colorize(trunk, TRUNK, 0.35, 0.2),
-        colorize(c1, lower, 1.15),
-        colorize(c2, lower, 1.15),
-        colorize(c3, snowy ? SNOW : FOLIAGE, 1.15, 0.15),
-    ])!;
+/** Konuma bağlı küçük düzensizlik: aynı köşeyi paylaşan yüzler aynı miktarda kayar (çatlak oluşmaz). */
+function jitter(geo: THREE.BufferGeometry, amount: number, seed: number) {
+    const pos = geo.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = pos.getZ(i);
+        const h = Math.sin(Math.round(x * 997) * 12.9898 + Math.round(y * 997) * 78.233 + Math.round(z * 997) * 37.719 + seed) * 43758.5453;
+        const n = (h - Math.floor(h)) * 2 - 1;
+        const r = Math.hypot(x, z) || 1;
+        pos.setXYZ(i, x + (x / r) * n * amount, y + n * amount * 0.6, z + (z / r) * n * amount);
+    }
+    return geo;
 }
 
-function buildBroadleaf() {
-    const trunk = new THREE.CylinderGeometry(0.045, 0.075, 0.45, 5).translate(0, 0.22, 0);
-    const blobs = [
-        new THREE.IcosahedronGeometry(0.3, 0).translate(0, 0.62, 0),
-        new THREE.IcosahedronGeometry(0.22, 0).translate(0.17, 0.52, 0.06),
-        new THREE.IcosahedronGeometry(0.2, 0).translate(-0.15, 0.55, -0.08),
-        new THREE.IcosahedronGeometry(0.18, 0).translate(0.02, 0.82, 0.04),
-    ];
-    return mergeGeometries([colorize(trunk, TRUNK, 0.45, 0.2), ...blobs.map((b) => colorize(b, FOLIAGE, 1.0))])!;
+/** Katmanlı çam: dallar aşağı sarkık, her katman hafif dönük; uçlar güneşte açık */
+function buildPine(snowy: boolean, variant: number) {
+    const trunk = new THREE.CylinderGeometry(0.04, 0.075, 0.38, 6).translate(0, 0.18, 0);
+    const tiers = variant ? [[0.4, 0.42, 0.4], [0.32, 0.38, 0.62], [0.24, 0.34, 0.84], [0.15, 0.3, 1.04]] : [[0.36, 0.5, 0.46], [0.27, 0.44, 0.74], [0.17, 0.36, 1.0]];
+    const parts = [colorize(trunk, TRUNK, 0.38, 0.2)];
+    tiers.forEach(([r, h, y], i) => {
+        const cone = new THREE.ConeGeometry(r, h, 8, 1).rotateY(i * 0.4).translate(0, y, 0);
+        const top = i === tiers.length - 1;
+        const col = snowy ? (top || i === tiers.length - 2 ? SNOW : new THREE.Color('#9db5a6')) : FOLIAGE;
+        parts.push(colorize(jitter(cone.toNonIndexed(), 0.025, i + variant * 7), col, 1.2, top ? 0.15 : 0.45));
+    });
+    return mergeGeometries(parts)!;
+}
+
+/** Yapraklı: topak topak taç; varyant 1 daha uzun ve dağınık */
+function buildBroadleaf(variant: number) {
+    const trunk = new THREE.CylinderGeometry(0.04, 0.075, variant ? 0.55 : 0.45, 6).translate(0, variant ? 0.27 : 0.22, 0);
+    const blobs: [number, number, number, number][] = variant
+        ? [[0.24, 0, 0.78, 0], [0.2, 0.15, 0.62, 0.05], [0.19, -0.14, 0.66, -0.06], [0.17, 0.05, 0.98, 0.04], [0.15, -0.06, 0.5, 0.14]]
+        : [[0.3, 0, 0.62, 0], [0.22, 0.18, 0.52, 0.06], [0.21, -0.16, 0.55, -0.08], [0.19, 0.02, 0.84, 0.04], [0.17, 0.04, 0.5, -0.18], [0.16, -0.05, 0.6, 0.19]];
+    const parts = [colorize(trunk, TRUNK, 0.5, 0.2)];
+    blobs.forEach(([r, x, y, z], i) => {
+        const g = new THREE.IcosahedronGeometry(r, 0).rotateY(i * 1.3).rotateX(i * 0.7).translate(x, y, z);
+        parts.push(colorize(jitter(g, r * 0.12, i + variant * 11), FOLIAGE, 1.05));
+    });
+    return mergeGeometries(parts)!;
+}
+
+/** Orman tabanı çalısı: ağaçların arasını doldurur (ormanı yoğun ve canlı gösterir) */
+function buildBush() {
+    const blobs: [number, number, number, number][] = [[0.2, 0, 0.12, 0], [0.15, 0.16, 0.08, 0.05], [0.14, -0.14, 0.09, -0.07]];
+    return mergeGeometries(
+        blobs.map(([r, x, y, z], i) => colorize(jitter(new THREE.IcosahedronGeometry(r, 0).scale(1, 0.75, 1).translate(x, y, z), r * 0.15, i + 3), FOLIAGE, 0.3, 0.35)),
+    )!;
 }
 
 interface TreeRecord {
-    kind: TreeKind;
+    /** Çizim grubu: tür * 2 + varyant; 8 = çalı */
+    group: number;
     matrix: THREE.Matrix4;
     color: THREE.Color;
 }
 
-async function loadTrees(): Promise<TreeRecord[]> {
+/** fraction: çizilecek ağaç oranı; elenenler hiç işlenmez. Ana iş parçacığı her 2000 kayıtta serbest bırakılır. */
+async function loadTrees(fraction: number, bushes: boolean): Promise<TreeRecord[]> {
     const res = await fetch(TREE_URL);
     if (!res.ok) throw new Error(`Ağaç verisi yüklenemedi (${res.status})`);
     const view = new DataView(await res.arrayBuffer());
     const out: TreeRecord[] = [];
     const obj = new THREE.Object3D();
     const paint = new THREE.Color();
-    for (let o = 0; o + TREE_STRIDE <= view.byteLength; o += TREE_STRIDE) {
+    for (let o = 0, i = 0; o + TREE_STRIDE <= view.byteLength; o += TREE_STRIDE, i++) {
+        if (!keepTree(i, fraction)) continue;
+        if (i % 2000 === 1999) await new Promise((r) => setTimeout(r, 0));
         const px = view.getUint16(o, true);
         const py = view.getUint16(o + 2, true);
         const kind = view.getUint8(o + 4) as TreeKind;
@@ -102,8 +134,25 @@ async function loadTrees(): Promise<TreeRecord[]> {
         obj.updateMatrix();
 
         paint.setRGB(view.getUint8(o + 7) / 255, view.getUint8(o + 8) / 255, view.getUint8(o + 9) / 255, THREE.SRGBColorSpace);
-        const color = KIND_COLOR[kind].clone().lerp(paint, PAINT_MIX).multiplyScalar(0.9 + seed * 0.2);
-        out.push({ kind, matrix: obj.matrix.clone(), color });
+        const base = kind === TreeKind.Autumn && seed > 0.62 ? AUTUMN_ALT : KIND_COLOR[kind] ?? KIND_COLOR[TreeKind.Broadleaf];
+        const color = base.clone().lerp(paint, PAINT_MIX);
+        // Ağaçtan ağaca ton ve parlaklık farkı: ormanlar tek renk bir halı gibi durmasın
+        color.offsetHSL((seed - 0.5) * 0.05, (scale - 0.5) * 0.12, (seed - 0.5) * 0.1);
+        const variant = kind === TreeKind.SnowPine ? 0 : (i * 7 + Math.floor(seed * 10)) % 2;
+        out.push({ group: kind * 2 + variant, matrix: obj.matrix.clone(), color });
+
+        // Çalı: yoğun kademelerde her üç ağaçtan birinin dibine
+        if (bushes && kind !== TreeKind.SnowPine && i % 3 === 0) {
+            const a = seed * Math.PI * 2;
+            obj.position.x += Math.cos(a) * s * 0.9;
+            obj.position.z += Math.sin(a) * s * 0.9;
+            obj.position.y -= 0.004;
+            obj.rotation.set(0, a, 0);
+            obj.scale.setScalar(s * (0.75 + scale * 0.4));
+            obj.updateMatrix();
+            const bushColor = color.clone().offsetHSL(0.02, 0.05, -0.06);
+            out.push({ group: 8, matrix: obj.matrix.clone(), color: bushColor });
+        }
     }
     return out;
 }
@@ -124,9 +173,12 @@ function makeTreeMaterial(uniforms: { uTime: { value: number }; uGrow: { value: 
                     float velGrow = clamp(uGrow * 1.6 - fract(velRoot.x * 0.37 + velRoot.z * 0.61) * 0.6, 0.0, 1.0);
                     transformed *= velGrow;
                     float velK = max(transformed.y, 0.0);
-                    float velWind = sin(uTime * 1.4 + velRoot.x * 2.1 + velRoot.z * 1.3) * 0.045 * velK * velK;
-                    transformed.x += velWind;
-                    transformed.z += velWind * 0.55;
+                    // Haritayı batıdan doğuya geçen esinti: ağaçlar sırayla eğilir
+                    float velGust = 0.55 + 0.45 * sin(velRoot.x * 0.35 + velRoot.z * 0.18 - uTime * 0.8);
+                    float velWind = sin(uTime * 1.4 + velRoot.x * 2.1 + velRoot.z * 1.3) * 0.05 * velGust * velK * velK;
+                    float velFlutter = sin(uTime * 7.0 + position.y * 23.0 + position.x * 17.0 + velRoot.z * 9.0) * 0.008 * velK;
+                    transformed.x += velWind + velFlutter;
+                    transformed.z += velWind * 0.55 + velFlutter * 0.7;
                 #endif`,
             );
     };
@@ -152,20 +204,25 @@ const Forest = ({ fraction = 1, wind = true }: ForestProps) => {
 
     useEffect(() => {
         let alive = true;
-        loadTrees()
+        loadTrees(fraction, fraction >= 0.6)
             .then((t) => alive && setTrees(t))
             .catch((err) => console.error('[Velutan] Orman yüklenemedi:', err));
         return () => {
             alive = false;
         };
-    }, []);
+    }, [fraction]);
 
     const geometries = useMemo(
         () => ({
-            [TreeKind.Pine]: buildPine(false),
-            [TreeKind.Broadleaf]: buildBroadleaf(),
-            [TreeKind.SnowPine]: buildPine(true),
-            [TreeKind.Autumn]: buildBroadleaf(),
+            0: buildPine(false, 0),
+            1: buildPine(false, 1),
+            2: buildBroadleaf(0),
+            3: buildBroadleaf(1),
+            4: buildPine(true, 0),
+            5: buildPine(true, 1),
+            6: buildBroadleaf(0),
+            7: buildBroadleaf(1),
+            8: buildBush(),
         }),
         [],
     );
@@ -173,12 +230,10 @@ const Forest = ({ fraction = 1, wind = true }: ForestProps) => {
 
     const groups = useMemo(() => {
         if (!trees) return null;
-        const byKind: Record<number, TreeRecord[]> = { 0: [], 1: [], 2: [], 3: [] };
-        trees.forEach((t, i) => {
-            if (keepTree(i, fraction)) (byKind[t.kind] ?? byKind[TreeKind.Broadleaf]).push(t);
-        });
-        return byKind;
-    }, [trees, fraction]);
+        const byGroup: Record<number, TreeRecord[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [] };
+        for (const t of trees) (byGroup[t.group] ?? byGroup[2]).push(t);
+        return byGroup;
+    }, [trees]);
 
     useEffect(() => {
         if (!groups) return;
@@ -222,7 +277,7 @@ const Forest = ({ fraction = 1, wind = true }: ForestProps) => {
                         ref={(m) => {
                             meshes.current[Number(kind)] = m;
                         }}
-                        args={[geometries[Number(kind) as TreeKind], material, list.length]}
+                        args={[geometries[Number(kind) as keyof typeof geometries], material, list.length]}
                         castShadow={false}
                         frustumCulled
                     />

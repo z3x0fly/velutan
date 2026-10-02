@@ -18,17 +18,17 @@ import LogoBadge from './ui/LogoBadge';
 import LoadingIndicator from './ui/LoadingIndicator';
 import type { Region } from './map/types';
 import { API_URL } from './map/media';
-import { KM_PER_PIXEL, pathLengthKm } from './map/utils/coords';
+import { useRouteAnalysis } from './map/useRouteAnalysis';
+import { formatDuration } from './map/travelAnalysis';
+import RouteBreakdown from './ui/RouteBreakdown';
+import SharedPinsPrompt from './ui/SharedPinsPrompt';
+import { pinStore } from './map/pinStore';
 
-// velutanmap.com resmi yolculuk temposu (km/gün)
-const PACE_KM_PER_DAY: Record<string, number> = { slow: 30, normal: 45, fast: 60 };
-const TERRAIN_MULT: Record<string, number> = { normal: 1, rough: 0.7, mountain: 0.4 };
 
 
 export default function MapApp({ initialRegions = [] }: { initialRegions?: Region[] }) {
   const [regions, setRegions] = useState<Region[]>(initialRegions);
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
-  const [showSplash, setShowSplash] = useState(true);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [spamCount, setSpamCount] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
@@ -39,7 +39,6 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
   const [isTravelMode, setIsTravelMode] = useState(false);
   const [travelPath, setTravelPath] = useState<{ x: number, y: number }[]>([]);
   const [travelSpeed, setTravelSpeed] = useState('normal'); // slow, normal, fast
-  const [terrainType, setTerrainType] = useState('normal'); // normal, rough, mountain
   const [mounted, setMounted] = useState(false);
   const [showTravelDetails, setShowTravelDetails] = useState(false);
   const [isAmbienceMounted, setIsAmbienceMounted] = useState(false);
@@ -48,13 +47,16 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
   const [brushEnabled, setBrushEnabled] = useState(false);
   const mapRef = useRef<MapCanvas3DHandle>(null);
 
-  // Fetch Easter Egg Assets
-  useEffect(() => {
+  // Easter egg listesi açılışta değil, pusulaya ilk tıklanınca çekilir (ilk yükü hafifletir)
+  const easterEggLoaded = useRef(false);
+  const loadEasterEgg = () => {
+    if (easterEggLoaded.current) return;
+    easterEggLoaded.current = true;
     fetch('/api/easter-egg')
       .then(res => res.json())
       .then(data => setEasterEggAssets(Array.isArray(data) ? data : []))
-      .catch(err => console.error("Easter Egg Assets fetch error:", err));
-  }, []);
+      .catch(() => { easterEggLoaded.current = false; });
+  };
 
   // Tam ekran harita: sayfa kaydırmasını yalnızca burada kilitle
   useEffect(() => {
@@ -80,13 +82,42 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
     const region = regions.find(r => r.slug === slug);
     if (!region) return;
     deepLinkDone.current = true;
-    // Açılış kamera animasyonu bittikten sonra uç
+    // Açılış kamera geçişi bittikten sonra uç
     const t = setTimeout(() => {
       mapRef.current?.flyTo(region.x, region.y);
       setTimeout(() => setSelectedRegion(region), 1300);
     }, 2800);
     return () => clearTimeout(t);
   }, [regions]);
+
+  // Defter/sınır listesinden "oraya uç" istekleri
+  useEffect(() => {
+    const onFly = (e: Event) => {
+      const { x, y } = (e as CustomEvent<{ x: number; y: number }>).detail;
+      mapRef.current?.flyTo(x, y);
+    };
+    window.addEventListener('velutan:fly', onFly);
+    return () => window.removeEventListener('velutan:fly', onFly);
+  }, []);
+
+  // Durak/işaret koyarken haritadaki işaretçiler tıklamayı yutmasın: tık her zaman altındaki zemine gider
+  useEffect(() => {
+    const sync = () => document.documentElement.classList.toggle('map-picking', isTravelMode || pinStore.get().placing);
+    sync();
+    const off = pinStore.subscribe(sync);
+    return () => {
+      off();
+      document.documentElement.classList.remove('map-picking');
+    };
+  }, [isTravelMode]);
+
+  // Seyahat modu ile işaret bırakma aynı anda açık olmasın (ikisi de haritaya tıklamayı dinler)
+  useEffect(() => {
+    if (isTravelMode) pinStore.setPlacing(false);
+  }, [isTravelMode]);
+  useEffect(() => pinStore.subscribe(() => {
+    if (pinStore.get().placing) setIsTravelMode(false);
+  }), []);
 
   // Filter regions based on selected type
   const filteredRegions = useMemo(
@@ -98,16 +129,16 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
   const handleTravelPointAdd = useCallback((p: { x: number, y: number }) => setTravelPath(prev => [...prev, p]), []);
   const handleSimulationEnd = useCallback(() => setIsSimulating(false), []);
   useEffect(() => {
-    setMounted(true);
+    // 3D motor ilk boyamadan sonra, tarayıcı boşa çıkınca başlar (ilk görüntü ve etkileşim gecikmesin)
+    const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    if (ric) ric(() => setMounted(true), { timeout: 1200 });
+    else setTimeout(() => setMounted(true), 200);
     // Orman fırçası yalnızca geliştirici modunda: ?firca=1
     setBrushEnabled(new URLSearchParams(window.location.search).get('firca') === '1');
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 3500);
-    return () => clearTimeout(timer);
   }, []);
 
   const handleCompassReset = () => {
+    loadEasterEgg();
     const now = Date.now();
     const timeSinceLastClick = now - lastClickTime;
     
@@ -136,39 +167,20 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
     }
   };
 
-  // Mesafe & süre (ölçek: velutanmap.com, harita genişliği 5431 km)
+  // Mesafe & süre: rota yükselti haritası üzerinden örneklenir; düz/sarp/dağ/deniz otomatik ayrılır
+  // (ölçek: velutanmap.com, harita genişliği 5431 km; tempo: yavaş 30 / normal 45 / hızlı 60 km/gün)
+  const route = useRouteAnalysis(travelPath, travelSpeed);
   const calculateStats = () => {
-    const km = pathLengthKm(travelPath);
-    const effectiveSpeed = (PACE_KM_PER_DAY[travelSpeed] ?? 45) * (TERRAIN_MULT[terrainType] ?? 1);
-    const totalDays = km / effectiveSpeed;
-    const days = Math.floor(totalDays);
-    const hours = Math.floor((totalDays - days) * 24);
-    return { km: Math.round(km), days, hours, totalDays };
+    const totalDays = route?.totalDays ?? 0;
+    return { km: Math.round(route?.km ?? 0), ...formatDuration(totalDays), totalDays };
   };
-
   const stats = calculateStats();
 
   return (
     <div className="fixed inset-0 w-screen h-screen bg-[#a89361] overflow-hidden select-none">
 
-      {/* SPLASH SCREEN */}
-      <div className={`fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-[#050505] transition-opacity duration-1000 pointer-events-none ${showSplash ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="relative">
-          <div className="absolute inset-0 bg-amber-500/20 blur-[100px] rounded-full animate-pulse" />
-          <img
-            src="/logo.svg"
-            alt="Velutan Logo"
-            className="relative w-48 object-contain drop-shadow-[0_0_30px_rgba(255,215,0,0.3)] animate-bounce-slow"
-          />
-        </div>
-        <div className="mt-8 flex items-center gap-4">
-          <div className="h-[1px] w-32 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
-          <span className="text-amber-100/60 font-serif tracking-[0.5em] text-sm animate-pulse">HARİTA YÜKLENİYOR</span>
-          <div className="h-[1px] w-32 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
-        </div>
-      </div>
-
       <PatchNotesModal />
+      <SharedPinsPrompt />
       <LoadingIndicator />
 
       {/* 1. MAP LAYER: Harita en dipte (Hata giderme: Hydration guard) */}
@@ -179,7 +191,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
             regions={filteredRegions}
             onRegionClick={handleRegionClick}
             isTravelMode={isTravelMode}
-            travelPath={travelPath}
+            travelRoute={route}
             onTravelPointAdd={handleTravelPointAdd}
             onSimulationEnd={handleSimulationEnd}
             brushEnabled={brushEnabled}
@@ -230,6 +242,10 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
                     </div>
                 </div>
 
+                <div className="mt-4">
+                    <RouteBreakdown route={route} />
+                </div>
+
                 <div className="mt-4 pt-2 flex justify-end">
                    <button 
                      onClick={() => setShowTravelDetails(true)}
@@ -268,7 +284,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
                            </div>
                            {i > 0 && (
                              <div className="text-amber-500/60 font-black text-sm font-mono italic">
-                               +{Math.round(Math.hypot(pt.x - travelPath[i-1].x, pt.y - travelPath[i-1].y) * KM_PER_PIXEL)}km
+                               +{route ? Math.round(route.samples[route.stopIndex[i]].km - route.samples[route.stopIndex[i - 1]].km) : 0}km
                              </div>
                            )}
                            <button 
@@ -307,15 +323,15 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
             setTravelPath={setTravelPath}
             travelSpeed={travelSpeed}
             setTravelSpeed={setTravelSpeed}
-            terrainType={terrainType}
-            setTerrainType={setTerrainType}
+            route={route}
             isSimulating={isSimulating}
             showBrush={brushEnabled}
             startSimulation={() => {
               if (travelPath.length < 2) return;
               setIsSimulating(true);
               // 1 gün yolculuk ≈ 2 sn animasyon (4-60 sn arası)
-              mapRef.current?.startSimulation(travelPath, Math.min(60, Math.max(4, stats.totalDays * 2)));
+              if (!route) return;
+              mapRef.current?.startSimulation(route, Math.min(60, Math.max(4, stats.totalDays * 2)));
             }}
             stopSimulation={() => {
               setIsSimulating(false);

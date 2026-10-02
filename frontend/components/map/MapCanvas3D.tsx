@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, invalidate, useFrame, useThree } from '@react-three/fiber';
 import { Html, MapControls, PerformanceMonitor, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
@@ -9,13 +9,17 @@ import gsap from 'gsap';
 import MapLayers from './layers/MapLayers';
 import BrushTool from './layers/BrushTool';
 import MapMarkers from './MapMarkers';
+import PersonalPins from './PersonalPins';
+import Territories from './layers/Territories';
 import MapTravel from './MapTravel';
+import GroundPicker from './GroundPicker';
 import MapErrorBoundary from './MapErrorBoundary';
 import { from3D, to3D, WORLD_HEIGHT, WORLD_WIDTH } from './utils/coords';
-import { loadHeightField } from './terrain/heightField';
+import { positionAtDay, type Ground, type RouteAnalysis } from './travelAnalysis';
 import { detectTier, QualitySettings, settingsFor, stepDown } from './terrain/quality';
 import type { MapPoint, Region } from './types';
 import { cameraStore } from './cameraStore';
+import { loadStore } from './loadStore';
 
 // Kamera: hedef etrafında küresel koordinat. Yaklaştıkça eğim artar (Runeterra tarzı).
 const MIN_DIST = 2.2;
@@ -34,7 +38,7 @@ export interface MapCanvas3DProps {
     regions: Region[];
     onRegionClick: (region: Region) => void;
     isTravelMode?: boolean;
-    travelPath?: MapPoint[];
+    travelRoute?: RouteAnalysis | null;
     onTravelPointAdd?: (point: MapPoint) => void;
     onSimulationEnd?: () => void;
     brushEnabled?: boolean;
@@ -43,7 +47,7 @@ export interface MapCanvas3DProps {
 export interface MapCanvas3DHandle {
     resetRotation: () => void;
     flyTo: (x: number, y: number) => void;
-    startSimulation: (path: MapPoint[], durationSeconds: number) => void;
+    startSimulation: (route: RouteAnalysis, durationSeconds: number) => void;
     stopSimulation: () => void;
 }
 
@@ -114,9 +118,9 @@ const CameraRig = ({
     // Geliştirme ortamında hata ayıklama için kamera/kontrol erişimi
     useEffect(() => {
         if (process.env.NODE_ENV !== 'production') {
-            (window as unknown as { __velutan?: unknown }).__velutan = { camera, controls: controlsRef };
+            (window as unknown as { __velutan?: unknown }).__velutan = { camera, controls: controlsRef, scene };
         }
-    }, [camera, controlsRef]);
+    }, [camera, controlsRef, scene]);
 
     const groundUnder = (ndc: THREE.Vector2, out: THREE.Vector3) => {
         raycaster.setFromCamera(ndc, camera);
@@ -209,10 +213,13 @@ const CameraRig = ({
  * Simülasyondaki yolcu. Konum her karede ref'ten okunur (React render'ı yok).
  * Işık kaynağı EKLENMEZ: ışık sayısı değişince tüm malzemelerin shader'ı yeniden derlenir (donma).
  */
-const Traveler = ({ posRef }: { posRef: React.MutableRefObject<THREE.Vector3> }) => {
+const Traveler = ({ posRef, groundRef }: { posRef: React.MutableRefObject<THREE.Vector3>; groundRef: React.MutableRefObject<Ground> }) => {
     const group = useRef<THREE.Group>(null);
+    const label = useRef<HTMLSpanElement>(null);
     useFrame(() => {
         group.current?.position.copy(posRef.current);
+        const text = TRAVELER_LABEL[groundRef.current];
+        if (label.current && label.current.textContent !== text) label.current.textContent = text;
     });
     return (
         <group ref={group}>
@@ -222,12 +229,14 @@ const Traveler = ({ posRef }: { posRef: React.MutableRefObject<THREE.Vector3> })
             </mesh>
             <Html center position={[0, 0.45, 0]} style={{ pointerEvents: 'none' }}>
                 <div className="bg-amber-600 text-white text-[12px] font-black px-3 py-1 rounded-full whitespace-nowrap shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-amber-400/50">
-                    YOLCU
+                    YOLCU · <span ref={label}>{TRAVELER_LABEL.plain}</span>
                 </div>
             </Html>
         </group>
     );
 };
+
+const TRAVELER_LABEL: Record<Ground, string> = { plain: 'Ova', rough: 'Sarp yamaç', mountain: 'Dağ geçidi', water: 'Gemiyle' };
 
 const LoadingLabel = () => (
     <Html center>
@@ -240,11 +249,13 @@ const SceneContents = ({
     props,
     simActive,
     simPosRef,
+    simGroundRef,
 }: {
     settings: QualitySettings;
     props: MapCanvas3DProps;
     simActive: boolean;
     simPosRef: React.MutableRefObject<THREE.Vector3>;
+    simGroundRef: React.MutableRefObject<Ground>;
 }) => (
     <>
         <hemisphereLight args={['#fff4dc', '#3a3020', 0.9]} />
@@ -254,25 +265,17 @@ const SceneContents = ({
         <Suspense fallback={<LoadingLabel />}>
             <MapLayers settings={settings} />
         </Suspense>
+        <Suspense fallback={null}>
+            <Territories segments={settings.terrainSegments} />
+        </Suspense>
         <MapMarkers regions={props.regions} onRegionClick={props.onRegionClick} />
-        <MapTravel path={props.travelPath ?? []} isTravelMode={!!props.isTravelMode} />
-        {simActive && <Traveler posRef={simPosRef} />}
+        <PersonalPins />
+        <MapTravel route={props.travelRoute ?? null} isTravelMode={!!props.isTravelMode} />
+        {simActive && <Traveler posRef={simPosRef} groundRef={simGroundRef} />}
         {props.brushEnabled && <BrushTool />}
 
-        {props.isTravelMode && (
-            <mesh
-                rotation={[-Math.PI / 2, 0, 0]}
-                position={[0, 0.12, 0]}
-                visible={false}
-                onClick={(e) => {
-                    if (e.delta > 4) return; // sürükleme, tıklama değil
-                    e.stopPropagation();
-                    const [x, y] = from3D(e.point.x, e.point.z);
-                    props.onTravelPointAdd?.({ x: Math.round(x), y: Math.round(y) });
-                }}
-            >
-                <planeGeometry args={[WORLD_WIDTH, WORLD_HEIGHT]} />
-            </mesh>
+        {props.isTravelMode && props.onTravelPointAdd && (
+            <GroundPicker onPick={(x, y) => props.onTravelPointAdd?.({ x, y })} />
         )}
     </>
 );
@@ -287,6 +290,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
     const tween = useRef<gsap.core.Animation | null>(null);
     const [simActive, setSimActive] = useState(false);
     const simPosRef = useRef(new THREE.Vector3());
+    const simGroundRef = useRef<Ground>('plain');
     const simulating = useRef(false);
 
     // Kullanıcı devraldı: sinematik geçişi durdur (simülasyon hariç).
@@ -310,7 +314,8 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
 
     // FPS izleme, harita yüklemesi BİTTİKTEN 4 sn sonra başlar: dokular GPU'ya yüklenirken ve
     // shader'lar derlenirken kareler doğal olarak yavaştır; güçlü cihazı yanlışlıkla düşürmesin.
-    const { active: loading } = useProgress();
+    const { active: loading, progress } = useProgress();
+    useEffect(() => loadStore.set({ active: loading, progress }), [loading, progress]);
     const [monitorReady, setMonitorReady] = useState(false);
     useEffect(() => {
         if (!settings || loading || monitorReady) return;
@@ -373,9 +378,11 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
             const cam = cameraRef.current;
             const c = controlsRef.current;
             if (!cam || !c) return;
+            const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+            if (settings.frameloop === 'demand' || reduced) return; // zayıf cihaz: doğrudan son görünüm
             cam.position.set(0, MAX_DIST * 1.15, 0.01);
             c.update();
-            animateTo(new THREE.Vector3(0, 0, 0), START_DIST, 0, 2.6);
+            animateTo(new THREE.Vector3(0, 0, 0), START_DIST, 0, 1.8);
         });
         return () => cancelAnimationFrame(id);
     }, [!!settings]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -391,43 +398,40 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
             const [tx, , tz] = to3D(x, y);
             animateTo(new THREE.Vector3(tx, 0, tz), FOCUS_DIST);
         },
-        startSimulation: async (path, durationSeconds) => {
+        startSimulation: (route, durationSeconds) => {
             tween.current?.kill();
-            if (path.length < 2) return;
+            if (route.samples.length < 2 || route.totalDays <= 0) return;
             simulating.current = true;
-            const simPoint = new THREE.Vector3();
-            simPosRef.current.set(0, -100, 0); // ilk kareye kadar görünmesin
+            const first = route.samples[0];
+            simPosRef.current.set(first.x, first.y, first.z);
+            simGroundRef.current = first.ground;
             setSimActive(true);
-            const field = await loadHeightField().catch(() => null);
-            const pts = path.map((p) => {
-                const [x, , z] = to3D(p.x, p.y);
-                return new THREE.Vector3(x, 0, z);
-            });
-            // Segment uzunluğuna göre sabit hız
-            const lengths = pts.slice(1).map((p, i) => p.distanceTo(pts[i]));
-            const total = lengths.reduce((a, b) => a + b, 0) || 1;
-            const state = { d: 0 };
+            // Oynatma süresi rotadaki GÜNLERE bölünür: dağ geçidinde yavaşlar, ovada ve denizde açılır
+            const state = { day: 0 };
+            let cursor = 0;
             const c = controlsRef.current;
             const cam = cameraRef.current;
-            const moveFirst = !!c && !!cam && cam.position.distanceTo(c.target) > 14;
-            if (moveFirst) animateTo(pts[0], 12, undefined, 1);
+            const start = new THREE.Vector3(first.x, 0, first.z);
+            const moveFirst = !!c && !!cam && (cam.position.distanceTo(c.target) > 14 || c.target.distanceTo(start) > 6);
+            if (moveFirst) animateTo(start, 12, undefined, 1);
             tween.current = gsap.to(state, {
-                d: total,
+                day: route.totalDays,
                 duration: Math.max(3, durationSeconds),
                 ease: 'none',
                 delay: moveFirst ? 1.05 : 0.2,
                 onUpdate: () => {
-                    let rest = state.d, i = 0;
-                    while (i < lengths.length - 1 && rest > lengths[i]) rest -= lengths[i++];
-                    const p = simPoint.copy(pts[i]).lerp(pts[i + 1], lengths[i] ? Math.min(rest / lengths[i], 1) : 1);
-                    p.y = Math.max(field?.sample(p.x, p.z) ?? 0, 0);
-                    simPosRef.current.copy(p);
+                    const p = positionAtDay(route, state.day, cursor);
+                    cursor = p.i;
+                    simPosRef.current.set(p.x, p.y, p.z);
+                    simGroundRef.current = p.ground;
                     if (c && cam) {
-                        const delta = _off.set(p.x - c.target.x, 0, p.z - c.target.z);
+                        // Kamera yumuşak takip: hedefi yolcuya doğru çeker (ani sıçrama yok)
+                        const delta = _off.set(p.x - c.target.x, 0, p.z - c.target.z).multiplyScalar(0.12);
                         c.target.add(delta);
                         cam.position.add(delta);
                         c.update();
                     }
+                    invalidate();
                 },
                 onComplete: () => {
                     simulating.current = false;
@@ -487,7 +491,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
                         onUserZoom={handleControlsStart}
                     />
 
-                    <SceneContents settings={settings} props={props} simActive={simActive} simPosRef={simPosRef} />
+                    <SceneContents settings={settings} props={props} simActive={simActive} simPosRef={simPosRef} simGroundRef={simGroundRef} />
                 </Canvas>
                 )}
             </MapErrorBoundary>

@@ -117,3 +117,22 @@ export const REGION_TYPES: { value: string; label: string }[] = [
 // Harita koordinat uzayı (frontend ile aynı)
 export const MAP_WIDTH = 8192;
 export const MAP_HEIGHT = 7192;
+
+export interface Territory {
+    id: number;
+    name: string;
+    kind: string;
+    color: string;
+    points: [number, number][];
+    region_id: number | null;
+    note: string | null;
+    sort: number;
+}
+
+export const TERRITORY_KINDS: { value: string; label: string }[] = [
+    { value: 'kingdom', label: 'Krallık / Devlet' },
+    { value: 'province', label: 'Eyalet / Beylik' },
+    { value: 'wild', label: 'Yaban Topraklar' },
+    { value: 'danger', label: 'Tehlikeli Bölge' },
+    { value: 'sacred', label: 'Kutsal / Lanetli Topraklar' },
+];

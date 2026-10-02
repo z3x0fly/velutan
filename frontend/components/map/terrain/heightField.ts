@@ -6,7 +6,7 @@ import { mapAsset } from '../media';
 export const DISPLACEMENT_SCALE = (HEIGHT_MAX - HEIGHT_MIN) * RELIEF;
 export const DISPLACEMENT_BIAS = HEIGHT_MIN * RELIEF;
 
-export const HEIGHT_URL = mapAsset('height_1024.png');
+export const HEIGHT_URL = mapAsset('height_1024.webp');
 
 export interface HeightField {
     width: number;
