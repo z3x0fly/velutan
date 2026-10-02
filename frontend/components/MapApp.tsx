@@ -80,9 +80,9 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
     if (!slug) return;
     const region = regions.find(r => r.slug === slug);
     if (!region) return;
-    deepLinkDone.current = true;
-    // Açılış kamera geçişi bittikten sonra uç
+    // Açılış kamera geçişi bittikten sonra uç (işaret zamanlayıcı içinde: iptal edilirse yeniden denenir)
     const t = setTimeout(() => {
+      deepLinkDone.current = true;
       mapRef.current?.flyTo(region.x, region.y);
       setTimeout(() => setSelectedRegion(region), 1300);
     }, 2800);
@@ -222,7 +222,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
              <div className="bg-black/90 border-2 border-amber-600/40 p-3 md:p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] md:min-w-[280px]">
                 <div className="flex justify-between items-center mb-4 border-b border-amber-600/20 pb-2">
                     <h3 className="text-amber-500 font-serif italic font-bold tracking-widest text-sm">YOLCULUK ÖZETİ</h3>
-                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.3</span>
+                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.4</span>
                 </div>
                 
                 <div className="space-y-4">

@@ -3,9 +3,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Grid3x3, X } from 'lucide-react';
 import { mediaUrl } from '../map/media';
 import type { Panorama } from '../map/types';
+import { useBattle, worldToCell } from './panorama/battle';
+import BattleScene from './panorama/BattleScene';
+import BattlePanel, { PendingToken } from './panorama/BattlePanel';
+import BattleGuide from './panorama/BattleGuide';
+
+const GUIDE_SEEN = 'velutan_savas_rehber';
 
 const MIN_FOV = 30;
 const MAX_FOV = 95;
@@ -17,7 +23,7 @@ const isFromVelutanmap = (p: Panorama) => p.image.startsWith('/static/panoramas/
  * Eşdikdörtgen (equirectangular) görseli kürenin içine giydirir. Sürükleyerek bakılır, tekerlekle FOV değişir.
  * Dokular önbelleğe alınmaz: panoramalar arasında gezinirken eskisi GPU'dan atılır.
  */
-const Sphere = ({ url, yaw, pitch, onLoaded, onError }: { url: string; yaw: number; pitch: number; onLoaded: () => void; onError: () => void }) => {
+const Sphere = ({ url, yaw, pitch, lockRef, onLoaded, onError }: { url: string; yaw: number; pitch: number; lockRef: React.MutableRefObject<boolean>; onLoaded: () => void; onError: () => void }) => {
     const [texture, setTexture] = useState<THREE.Texture | null>(null);
     const { camera, gl } = useThree();
     const view = useRef({ lon: yaw, lat: pitch, targetFov: 75 });
@@ -54,7 +60,8 @@ const Sphere = ({ url, yaw, pitch, onLoaded, onError }: { url: string; yaw: numb
             drag = { x: e.clientX, y: e.clientY, lon: view.current.lon, lat: view.current.lat };
         };
         const move = (e: PointerEvent) => {
-            if (!drag) return;
+            // Token sürüklenirken bakış dönmez
+            if (!drag || lockRef.current) return;
             const cam = camera as THREE.PerspectiveCamera;
             const k = cam.fov / el.clientHeight; // ekran pikseli -> derece
             view.current.lon = drag.lon - (e.clientX - drag.x) * k;
@@ -77,7 +84,7 @@ const Sphere = ({ url, yaw, pitch, onLoaded, onError }: { url: string; yaw: numb
             el.removeEventListener('pointercancel', up);
             el.removeEventListener('wheel', wheel);
         };
-    }, [camera, gl]);
+    }, [camera, gl, lockRef]);
 
     useFrame((_, delta) => {
         const cam = camera as THREE.PerspectiveCamera;
@@ -116,6 +123,44 @@ const PanoramaViewer = ({ panoramas, index, regionName, onIndexChange, onClose }
 
     useEffect(() => setStatus('loading'), [url]);
 
+    // Savaş ızgarası ve token'lar (bu mekâna özel, tarayıcıda saklanır)
+    const [battle, setBattle] = useBattle(pano?.slug ?? '');
+    const [panelOpen, setPanelOpen] = useState(true);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [placing, setPlacing] = useState<PendingToken | null>(null);
+    const [dragInfo, setDragInfo] = useState<string | null>(null);
+    const [guideOpen, setGuideOpen] = useState(false);
+    const lockRef = useRef(false);
+    useEffect(() => {
+        setSelectedId(null);
+        setPlacing(null);
+    }, [pano?.slug]);
+
+    const placeToken = useCallback(
+        (x: number, z: number) => {
+            if (!placing) return;
+            const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+            setBattle((s) => {
+                const [cx, cz] = worldToCell(x, z, placing.size, s.grid);
+                return { ...s, tokens: [...s.tokens, { id, ...placing, cx, cz }] };
+            });
+            setSelectedId(id);
+            setPlacing(null);
+        },
+        [placing, setBattle],
+    );
+    const removeToken = useCallback(
+        (id: string) => {
+            setBattle((s) => ({ ...s, tokens: s.tokens.filter((t) => t.id !== id) }));
+            setSelectedId((cur) => (cur === id ? null : cur));
+        },
+        [setBattle],
+    );
+    const moveToken = useCallback(
+        (id: string, cx: number, cz: number) => setBattle((s) => ({ ...s, tokens: s.tokens.map((t) => (t.id === id ? { ...t, cx, cz } : t)) })),
+        [setBattle],
+    );
+
     const go = useCallback(
         (d: number) => onIndexChange((index + d + panoramas.length) % panoramas.length),
         [index, panoramas.length, onIndexChange],
@@ -123,13 +168,18 @@ const PanoramaViewer = ({ panoramas, index, regionName, onIndexChange, onClose }
 
     useEffect(() => {
         const key = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
+            if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+            if (e.key === 'Escape') {
+                if (placing) setPlacing(null);
+                else onClose();
+            }
             if (e.key === 'ArrowRight') go(1);
             if (e.key === 'ArrowLeft') go(-1);
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && battle.on) removeToken(selectedId);
         };
         window.addEventListener('keydown', key);
         return () => window.removeEventListener('keydown', key);
-    }, [go, onClose]);
+    }, [go, onClose, placing, selectedId, battle.on, removeToken]);
 
     if (!pano || !url) return null;
 
@@ -140,10 +190,49 @@ const PanoramaViewer = ({ panoramas, index, regionName, onIndexChange, onClose }
                     url={url}
                     yaw={pano.initial_yaw}
                     pitch={pano.initial_pitch}
+                    lockRef={lockRef}
                     onLoaded={() => setStatus('ready')}
                     onError={() => setStatus('error')}
                 />
+                {battle.on && (
+                    <BattleScene
+                        grid={battle.grid}
+                        tokens={battle.tokens}
+                        selectedId={selectedId}
+                        placing={!!placing}
+                        lockRef={lockRef}
+                        onSelect={setSelectedId}
+                        onMove={moveToken}
+                        onPlace={placeToken}
+                        onDragInfo={setDragInfo}
+                    />
+                )}
             </Canvas>
+
+            {dragInfo && (
+                <div className="pointer-events-none absolute left-1/2 top-24 -translate-x-1/2 rounded-full border border-amber-500/40 bg-black/80 px-4 py-1.5 font-mono text-[13px] text-amber-200">
+                    {dragInfo}
+                </div>
+            )}
+
+            {battle.on && panelOpen && (
+                <div className="absolute right-3 top-24 md:top-28 z-10">
+                    <BattlePanel
+                        state={battle}
+                        selectedId={selectedId}
+                        placing={placing}
+                        onSelect={setSelectedId}
+                        onStartPlacing={setPlacing}
+                        onCancelPlacing={() => setPlacing(null)}
+                        onRemove={removeToken}
+                        onClear={() => (setBattle((s) => ({ ...s, tokens: [] })), setSelectedId(null))}
+                        onGrid={(patch) => setBattle((s) => ({ ...s, grid: { ...s.grid, ...patch } }))}
+                        onClose={() => setPanelOpen(false)}
+                        onHelp={() => setGuideOpen(true)}
+                    />
+                </div>
+            )}
+            {guideOpen && <BattleGuide onClose={() => setGuideOpen(false)} />}
 
             {status !== 'ready' && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -152,7 +241,7 @@ const PanoramaViewer = ({ panoramas, index, regionName, onIndexChange, onClose }
             )}
 
             {/* Üst bar */}
-            <div className="absolute top-0 inset-x-0 flex items-start justify-between p-4 md:p-6 bg-gradient-to-b from-black/80 to-transparent">
+            <div className="absolute top-0 inset-x-0 z-30 flex items-start justify-between gap-2 p-4 md:p-6 bg-gradient-to-b from-black/80 to-transparent">
                 <div>
                     <div className="text-[12px] font-black uppercase tracking-[0.3em] text-amber-500/70">{regionName} · 360°</div>
                     <h3 className="font-serif text-2xl md:text-3xl font-black text-amber-50">{pano.title}</h3>
@@ -168,19 +257,51 @@ const PanoramaViewer = ({ panoramas, index, regionName, onIndexChange, onClose }
                         )}
                     </div>
                 </div>
-                <button onClick={onClose} aria-label="Kapat" className="p-2 rounded-full bg-black/60 border border-amber-500/30 text-amber-400 hover:text-white">
-                    <X size={22} />
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                    <button
+                        onClick={() => {
+                            if (battle.on && !panelOpen) return setPanelOpen(true);
+                            setBattle((s) => ({ ...s, on: !s.on }));
+                            setPanelOpen(true);
+                            setPlacing(null);
+                            // İlk açılışta rehberi göster
+                            if (!battle.on) {
+                                try {
+                                    if (!localStorage.getItem(GUIDE_SEEN)) {
+                                        localStorage.setItem(GUIDE_SEEN, '1');
+                                        setGuideOpen(true);
+                                    }
+                                } catch {
+                                    /* yoksay */
+                                }
+                            }
+                        }}
+                        aria-pressed={battle.on}
+                        title="Savaş ızgarası ve token'lar"
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-[12px] font-black uppercase tracking-[0.15em] transition-colors ${
+                            battle.on ? 'border-amber-400 bg-amber-500/20 text-amber-200' : 'border-amber-500/30 bg-black/60 text-amber-400 hover:text-white'
+                        }`}
+                    >
+                        <Grid3x3 size={16} /> <span className="hidden sm:inline">{battle.on ? (panelOpen ? 'Izgarayı kapat' : 'Savaş paneli') : 'Savaş'}</span>
+                    </button>
+                    <button onClick={onClose} aria-label="Kapat" className="p-2 rounded-full bg-black/60 border border-amber-500/30 text-amber-400 hover:text-white">
+                        <X size={22} />
+                    </button>
+                </div>
             </div>
 
             {panoramas.length > 1 && (
                 <>
+                    {!(battle.on && panelOpen) && (
+                    <>
                     <button onClick={() => go(-1)} aria-label="Önceki" className="absolute left-3 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 border border-amber-500/30 text-amber-400 hover:text-white">
                         <ChevronLeft size={24} />
                     </button>
                     <button onClick={() => go(1)} aria-label="Sonraki" className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 border border-amber-500/30 text-amber-400 hover:text-white">
                         <ChevronRight size={24} />
                     </button>
+                    </>
+                    )}
 
                     {/* Küçük resim şeridi */}
                     <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/85 to-transparent">

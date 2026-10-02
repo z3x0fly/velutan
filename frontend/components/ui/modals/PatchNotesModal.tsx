@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.5.3';
+    const PATCH_VERSION = '1.5.4';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,9 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: '360° mekânlarda savaş ızgarası', desc: "Bir mekâna girip Savaş'a bas: zemine 1,5 m'lik kareli bir savaş alanı serilir. Oyuncu, düşman, NPC ve canavar token'ları koy, sürükle; kaç kare gittiği anında görünür. Izgarayı her mekânın zeminine göre ayarlayabilirsin." },
+                { title: '2D karakterlerin sahnede', desc: "Token'a arkası şeffaf bir karakter görseli yükle; karakterin ızgarada ayakta durur, tarafının rengindeki tabanla. Görsel yoksa baş harfli bir pul olur. Hepsi o mekâna özel saklanır." },
+                { title: 'Nasıl Çalışır? rehberi', desc: 'Savaş panelindeki rehber, ekran görüntüleriyle adım adım anlatıyor: mekâna gir, ızgarayı aç ve oturt, token hazırla, yerleştir, taşı ve mesafeyi say.' },
                 { title: 'Grafik ayarları', desc: "Sol alttaki Ayarlar'dan kaliteyi kendin seç: Otomatik (varsayılan), Asgari, Düşük, Orta, Yüksek ya da yeni Ultra. Ağaç yoğunluğu, rüzgâr, bulutlar, su, ejderha ve çözünürlük tek tek ayarlanabiliyor; seçimin saklanıyor." },
                 { title: 'Yeni müzik çalar', desc: 'Velutan Ezgileri artık %0–100 ses ayarlı: sessize al, önceki/sonraki, karıştır, ileri sar, listeden şarkı seç. Paneli küçültünce müzik çalmaya devam ediyor.' },
                 { title: 'Yaşayan denizler', desc: 'Su baştan yazıldı: kıyıda sığ ve köpüklü, açıkta derin ve koyu. Büyük okyanuslar dalgalanıyor, güneş dalgalarda parlıyor, ufka doğru gökyüzünü yansıtıyor.' },
