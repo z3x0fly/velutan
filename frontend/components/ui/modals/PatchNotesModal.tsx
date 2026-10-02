@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, ChevronRight, Zap, Sparkles } from 'lucide-react';
+import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.3.0';
+    const PATCH_VERSION = '1.5.0';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -28,11 +28,30 @@ const PatchNotesModal = () => {
 
     if (!isOpen) return null;
 
-    const notes = [
-        { title: "Yaşayan 3D Arazi", desc: "Dağlar gerçek yükseltiyle yükseliyor; 25 binden fazla 3D ağaç rüzgârda salınıyor. İsimler artık dağlara yapışmadan düz duruyor." },
-        { title: "360° Mekânlar", desc: "Demir Yemin, Atrapolis, Qasaar ve daha fazlası: 65 panoramayla mekânların içinde gezin (kaynak: velutanmap.com)." },
-        { title: "Kronikler & Karakterler", desc: "Velutan Wiki'den derlenen bölgeler, karakter portreleriyle birlikte lore panelinde." },
-        { title: "Daha Akıcı", desc: "Doku boyutları 160 MB'tan ~7 MB'a indi; zoom imlecin olduğu yere yapılıyor, pusula doğru yönü gösteriyor." },
+    const sections = [
+        {
+            title: 'Eklenenler',
+            icon: Plus,
+            items: [
+                { title: 'Haritayı tavaf eden ejderha', desc: "Olgrud'dan kalkan kızıl ejderha bütün kıtaların üstünden tur atıyor; dağlara yaklaşınca yükseliyor, dönüşlerde yatıyor, gölgesi araziyi izliyor." },
+                { title: 'Seyyah Defteri', desc: 'Haritaya kendi işaretini bırak: kamp, görev, hazine, tehlike, buluşma, not. Not düş, en yakın işarete mesafeyi gör, bağlantıyla arkadaşınla paylaş.' },
+                { title: 'Sınırlar', desc: 'Krallık ve bölge sınırları araziyle birlikte bükülerek haritada; lejanttan aç/kapa, üzerine gel, tıkla ve oraya uç.' },
+                { title: 'Araziye göre seyahat', desc: 'Rotanın geçtiği zemin (düz, sarp, dağ, deniz) otomatik okunuyor; süre buna göre hesaplanıyor, yolcu dağ geçidinde yavaşlıyor, denizi gemiyle geçiyor.' },
+                { title: 'Daha canlı ormanlar', desc: 'Yeni ağaç modelleri, orman tabanında çalılar, ağaçtan ağaca renk farkı ve haritayı geçen esinti.' },
+                { title: 'Zar Tepsisi ve bölge sayfaları', desc: 'd4–d100, avantaj/dezavantaj ve kritikler; her bölgenin kendi sayfası (/bolge/...).' },
+            ],
+        },
+        {
+            title: 'Düzeltilenler',
+            icon: Wrench,
+            items: [
+                { title: 'Tıklanan yere durak', desc: 'Seyahat durağı ve yer işareti, yakınlaşınca ya da harita eğikken kayıyordu; artık tam tıkladığın noktaya konuyor. Bölge ismine denk gelen tıklar kaybolmuyor.' },
+                { title: 'Seyahat çizgisi', desc: 'Rota dağların içine gömülmüyor; süre artık tek bir arazi seçimine göre değil, yol boyunca gerçek zemine göre.' },
+                { title: 'Dağ yükseklikleri', desc: 'Dağlar fazla yüksekti; alçaltıldı, haritanın doğu yarısında daha da. Gri dağlar ve Kalazad diğerlerinden yüksek.' },
+                { title: 'Daha hızlı açılış', desc: 'İlk yüklenen kod 258 KB → 28 KB; açılış ekranı beklemesi kalktı, dokular hafifledi. Zayıf cihazlarda takılmalar azaldı.' },
+                { title: 'Küçük düzeltmeler', desc: 'Lejant kapatma düğmesi Defter sekmesiyle çakışmıyor; bölge sayfaları kayıyor; karanlık mod eklentileri siteyi bozmuyor.' },
+            ],
+        },
     ];
 
 
@@ -62,25 +81,30 @@ const PatchNotesModal = () => {
                         </button>
                     </div>
 
-                    <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                        {notes.map((note, i) => (
-                            <div key={i} className="group bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 rounded-2xl p-4 transition-all duration-300">
-                                <div className="flex items-start gap-4">
-                                    <div className="p-2 rounded-lg bg-[#a89361]/10 text-[#a89361]">
-                                        <Zap className="w-4 h-4" />
+                    <div className="space-y-6 max-h-[55vh] overflow-y-auto pr-2 custom-scrollbar">
+                        {sections.map((sec) => {
+                            const Icon = sec.icon;
+                            return (
+                                <section key={sec.title}>
+                                    <h3 className="flex items-center gap-2 mb-3 text-[12px] uppercase font-black tracking-[0.3em] text-[#a89361]/70">
+                                        <Icon className="w-3.5 h-3.5" /> {sec.title}
+                                    </h3>
+                                    <div className="space-y-2.5">
+                                        {sec.items.map((note) => (
+                                            <div key={note.title} className="group bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 rounded-2xl px-4 py-3 transition-colors">
+                                                <h4 className="text-[#a89361] font-bold text-sm mb-0.5">{note.title}</h4>
+                                                <p className="text-zinc-400 text-sm leading-relaxed font-serif italic">{note.desc}</p>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div>
-                                        <h3 className="text-[#a89361] font-bold text-sm mb-1 group-hover:translate-x-1 transition-transform">{note.title}</h3>
-                                        <p className="text-zinc-400 text-sm leading-relaxed font-serif italic">{note.desc}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                                </section>
+                            );
+                        })}
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-white/5 flex justify-between items-center">
-                        <div className="text-[12px] text-zinc-500 font-mono tracking-widest uppercase">
-                            © 2026 VELUTAN EKİBİ
+                        <div className="text-[12px] text-zinc-500 font-mono tracking-widest">
+                            © 2026 <span className="text-[#a89361]/80">w0fly</span>
                         </div>
                         <button 
                             onClick={handleClose}
