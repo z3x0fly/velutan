@@ -6,8 +6,6 @@ import { ChevronUp, Map, Navigation, Trash2, Play, Brush } from 'lucide-react';
 interface LegendPanelProps {
   onTypeSelect?: (type: string | null) => void;
   selectedType?: string | null;
-  zoom?: number;
-  initialZoom?: number;
   
   // Travel Mode Props
   isTravelMode: boolean;
@@ -27,8 +25,6 @@ interface LegendPanelProps {
 const LegendPanel: React.FC<LegendPanelProps> = ({ 
     onTypeSelect, 
     selectedType, 
-    zoom = 1, 
-    initialZoom = 1,
     isTravelMode,
     setIsTravelMode,
     travelPath,
@@ -84,7 +80,7 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
   ];
 
   return (
-    <div className={`relative transition-all duration-500 ease-in-out ${isCollapsed ? 'w-16 h-16' : 'w-80 p-0'} glass-panel rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-amber-600/20`}>
+    <div className={`relative transition-all duration-500 ease-in-out ${isCollapsed ? 'w-16 h-16 overflow-hidden' : 'w-80 p-0 max-h-[calc(100vh-330px)] min-h-[220px] overflow-y-auto overflow-x-hidden custom-scrollbar'} glass-panel rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-amber-600/20`}>
       <div className="hud-corner hud-corner-tl opacity-60" />
       <div className="hud-corner hud-corner-tr opacity-40" />
 
@@ -97,7 +93,7 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
         {isCollapsed ? (
           <div className="flex flex-col items-center gap-1 group translate-y-1">
             <Map size={24} className="group-hover:scale-110 transition-transform text-amber-500" />
-            <span className="text-[8px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity text-amber-500/80">Aç</span>
+            <span className="text-[12px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity text-amber-500/80">Aç</span>
           </div>
         ) : (
           <ChevronUp size={20} />
@@ -112,21 +108,21 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
              className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all ${activeTab === 'travel' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
            >
               <Navigation size={14} className={isTravelMode ? 'animate-pulse' : ''} />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Seyahat</span>
+              <span className="text-[12px] font-black uppercase tracking-[0.2em]">Seyahat</span>
            </button>
            <button 
              onClick={() => setActiveTab('legend')}
              className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all border-l border-amber-600/10 ${activeTab === 'legend' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
            >
               <Map size={14} />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Lejant</span>
+              <span className="text-[12px] font-black uppercase tracking-[0.2em]">Lejant</span>
            </button>
            {showBrush && <button 
              onClick={() => setActiveTab('draw')}
              className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all border-l border-amber-600/10 ${activeTab === 'draw' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
            >
               <Brush size={14} className={paintMode ? 'animate-pulse text-amber-400' : ''} />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Fırça</span>
+              <span className="text-[12px] font-black uppercase tracking-[0.2em]">Fırça</span>
            </button>}
         </div>
       )}
@@ -138,13 +134,13 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
           <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-left duration-300">
             <div className="flex justify-between items-end border-b border-amber-500/10 pb-3">
               <div>
-                <span className="text-[10px] font-bold tracking-[0.3em] text-amber-500/60 uppercase">Harita Bilgisi</span>
+                <span className="text-[12px] font-bold tracking-[0.3em] text-amber-500/60 uppercase">Harita Bilgisi</span>
                 <h3 className="text-xl font-serif font-black text-amber-400 tracking-wide mt-1">Görünüm</h3>
               </div>
               {selectedType && (
                 <button 
                     onClick={() => onTypeSelect?.(null)}
-                    className="text-[8px] uppercase font-bold text-red-400 hover:text-red-300 px-2 py-1 transition-all"
+                    className="text-[12px] uppercase font-bold text-red-400 hover:text-red-300 px-2 py-1 transition-all"
                 >
                     Sıfırla
                 </button>
@@ -164,7 +160,7 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                                 style={item.shapeStyle}
                             />
                         </div>
-                        <span className={`text-[11px] font-bold uppercase tracking-widest transition-colors ${selectedType === item.type ? 'text-amber-100' : 'text-zinc-500 group-hover:text-amber-100'}`}>
+                        <span className={`text-[13px] font-bold uppercase tracking-widest transition-colors ${selectedType === item.type ? 'text-amber-100' : 'text-zinc-500 group-hover:text-amber-100'}`}>
                             {item.label}
                         </span>
                     </div>
@@ -176,13 +172,13 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
         {activeTab === 'travel' && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-left duration-300">
              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold tracking-[0.3em] text-amber-500/60 uppercase">Simülasyon</span>
+                <span className="text-[12px] font-bold tracking-[0.3em] text-amber-500/60 uppercase">Simülasyon</span>
                 <h3 className="text-xl font-serif font-black text-amber-400 tracking-wide">Yol Hazırlığı</h3>
              </div>
 
              <div className="flex flex-col gap-4 bg-black/40 p-4 rounded-xl border border-amber-600/10">
                 <div className="flex justify-between items-center">
-                    <span className="text-[11px] font-black uppercase text-zinc-400">Seyahat Modu</span>
+                    <span className="text-[13px] font-black uppercase text-zinc-400">Seyahat Modu</span>
                     <button 
                       onClick={() => setIsTravelMode(!isTravelMode)}
                       className={`w-12 h-6 rounded-full transition-all relative ${isTravelMode ? 'bg-amber-600' : 'bg-zinc-800'}`}
@@ -193,13 +189,13 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
 
                 <div className="space-y-4 pt-4 border-t border-white/5">
                    <div className="flex flex-col gap-2">
-                       <label className="text-[9px] font-black uppercase text-amber-600/60 tracking-widest">Seyahat Hızı</label>
+                       <label className="text-[12px] font-black uppercase text-amber-600/60 tracking-widest">Seyahat Hızı</label>
                        <div className="grid grid-cols-3 gap-1">
                            {['slow', 'normal', 'fast'].map(v => (
                                <button 
                                  key={v}
                                  onClick={() => setTravelSpeed(v)}
-                                 className={`py-2 text-[9px] font-black uppercase border transition-all ${travelSpeed === v ? 'bg-amber-600 text-white border-amber-400' : 'bg-zinc-900/50 text-zinc-600 border-zinc-800'}`}
+                                 className={`py-2 text-[12px] font-black uppercase border transition-all ${travelSpeed === v ? 'bg-amber-600 text-white border-amber-400' : 'bg-zinc-900/50 text-zinc-600 border-zinc-800'}`}
                                >
                                   {v === 'slow' ? 'Yavaş' : v === 'normal' ? 'Normal' : 'Hızlı'}
                                </button>
@@ -208,13 +204,13 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                    </div>
 
                    <div className="flex flex-col gap-2">
-                       <label className="text-[9px] font-black uppercase text-amber-600/60 tracking-widest">Arazi Tipi</label>
+                       <label className="text-[12px] font-black uppercase text-amber-600/60 tracking-widest">Arazi Tipi</label>
                        <div className="grid grid-cols-3 gap-1">
                            {['normal', 'rough', 'mountain'].map(v => (
                                <button 
                                  key={v}
                                  onClick={() => setTerrainType(v)}
-                                 className={`py-2 text-[9px] font-black uppercase border transition-all ${terrainType === v ? 'bg-amber-600 text-white border-amber-400' : 'bg-zinc-900/50 text-zinc-600 border-zinc-800'}`}
+                                 className={`py-2 text-[12px] font-black uppercase border transition-all ${terrainType === v ? 'bg-amber-600 text-white border-amber-400' : 'bg-zinc-900/50 text-zinc-600 border-zinc-800'}`}
                                >
                                   {v === 'normal' ? 'Düz' : v === 'rough' ? 'Sarp' : 'Dağ'}
                                </button>
@@ -227,7 +223,7 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
              <div className="flex flex-col gap-2 pt-4">
                 <button 
                    onClick={() => setTravelPath([])}
-                   className="flex items-center justify-center gap-2 py-3 bg-red-900/20 border border-red-500/20 text-red-400 hover:bg-red-900/40 transition-all rounded-lg text-[11px] font-black uppercase tracking-widest"
+                   className="flex items-center justify-center gap-2 py-3 bg-red-900/20 border border-red-500/20 text-red-400 hover:bg-red-900/40 transition-all rounded-lg text-[13px] font-black uppercase tracking-widest"
                 >
                    <Trash2 size={14} /> Temizle
                 </button>
@@ -235,14 +231,14 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                     !isSimulating ? (
                         <button 
                             onClick={startSimulation}
-                            className="flex items-center justify-center gap-2 py-4 bg-amber-600 text-white hover:bg-amber-500 transition-all rounded-lg text-[12px] font-black uppercase tracking-widest shadow-xl shadow-amber-900/20 active:scale-95"
+                            className="flex items-center justify-center gap-2 py-4 bg-amber-600 text-white hover:bg-amber-500 transition-all rounded-lg text-[14px] font-black uppercase tracking-widest shadow-xl shadow-amber-900/20 active:scale-95"
                         >
                             <Play size={16} fill="currentColor" /> Simülasyonu Başlat
                         </button>
                     ) : (
                         <button 
                             onClick={stopSimulation}
-                            className="flex items-center justify-center gap-2 py-4 bg-red-600 text-white hover:bg-red-500 transition-all rounded-lg text-[12px] font-black uppercase tracking-widest shadow-xl shadow-red-900/20 active:scale-95 animate-pulse"
+                            className="flex items-center justify-center gap-2 py-4 bg-red-600 text-white hover:bg-red-500 transition-all rounded-lg text-[14px] font-black uppercase tracking-widest shadow-xl shadow-red-900/20 active:scale-95 animate-pulse"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12"></rect></svg>
                             Simülasyonu Durdur
@@ -251,7 +247,7 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                 )}
              </div>
 
-             <div className="mt-2 text-[10px] italic text-zinc-500 border-l-2 border-amber-600/20 pl-3 py-1">
+             <div className="mt-2 text-[12px] italic text-zinc-500 border-l-2 border-amber-600/20 pl-3 py-1">
                 Haritaya tıklayarak durak ekleyebilirsin.
              </div>
           </div>
@@ -261,12 +257,12 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
         {showBrush && activeTab === 'draw' && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-left duration-300">
              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold tracking-[0.3em] text-emerald-500/60 uppercase">Yaratıcılık Modu</span>
+                <span className="text-[12px] font-bold tracking-[0.3em] text-emerald-500/60 uppercase">Yaratıcılık Modu</span>
                 <h3 className="text-xl font-serif font-black text-amber-400 tracking-wide">Orman Fırçası</h3>
              </div>
 
              <div className="flex flex-col gap-4 bg-black/40 p-4 rounded-xl border border-amber-600/10">
-                <p className="text-[10px] text-zinc-400 mb-2 font-medium">
+                <p className="text-[12px] text-zinc-400 mb-2 font-medium">
                     Bölge boya, kopyala, <code>tools/forest_zones.json</code> içine ekle ve <code>python tools/build_map_assets.py</code> çalıştır.
                 </p>
 
@@ -279,7 +275,7 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                             <span className="text-sm">🌳</span>
                         </div>
                         <div className="flex flex-col items-start pr-5">
-                            <span className={`text-[12px] font-black uppercase tracking-widest ${paintMode === 'forest' ? 'text-emerald-400' : 'text-zinc-500'}`}>Canlı Orman</span>
+                            <span className={`text-[14px] font-black uppercase tracking-widest ${paintMode === 'forest' ? 'text-emerald-400' : 'text-zinc-500'}`}>Canlı Orman</span>
                         </div>
                     </button>
                     
@@ -291,13 +287,13 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                             <span className="text-[13px] translate-y-[-1px]">🍂</span>
                         </div>
                         <div className="flex flex-col items-start pr-5">
-                            <span className={`text-[12px] font-black uppercase tracking-widest ${paintMode === 'autumn' ? 'text-amber-400' : 'text-zinc-500'}`}>Solmuş Orman</span>
+                            <span className={`text-[14px] font-black uppercase tracking-widest ${paintMode === 'autumn' ? 'text-amber-400' : 'text-zinc-500'}`}>Solmuş Orman</span>
                         </div>
                     </button>
                 </div>
 
                 <div className="flex flex-col gap-3 mt-2 pt-4 border-t border-white/5">
-                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <div className="flex justify-between items-center text-[12px] font-black uppercase tracking-widest text-zinc-400">
                         <span>Fırça Kalınlığı</span>
                         <span className="text-amber-500">{brushSize.toFixed(1)}</span>
                     </div>
@@ -315,13 +311,13 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                 <div className="flex gap-2">
                     <button 
                         onClick={() => propagatePaintMode(null)}
-                        className="flex-1 py-3 bg-zinc-800/80 border border-zinc-700 hover:bg-zinc-700 transition-all rounded-lg text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20"
+                        className="flex-1 py-3 bg-zinc-800/80 border border-zinc-700 hover:bg-zinc-700 transition-all rounded-lg text-[12px] font-black uppercase tracking-widest text-white shadow-xl shadow-black/20"
                     >
                         İptal Et
                     </button>
                     <button 
                         onClick={emitClearZones}
-                        className="flex-1 py-3 bg-red-900/20 border border-red-500/20 text-red-400 hover:bg-red-900/40 transition-all rounded-lg text-[10px] font-black uppercase tracking-widest"
+                        className="flex-1 py-3 bg-red-900/20 border border-red-500/20 text-red-400 hover:bg-red-900/40 transition-all rounded-lg text-[12px] font-black uppercase tracking-widest"
                     >
                         <Trash2 size={12} className="inline mr-1 -mt-0.5" /> Sil
                     </button>
@@ -329,14 +325,14 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                 
                 <button 
                     onClick={emitCopyZones}
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-amber-600 text-white hover:bg-amber-500 transition-all rounded-lg text-[12px] font-black uppercase tracking-widest shadow-xl shadow-amber-900/20 active:scale-95"
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-amber-600 text-white hover:bg-amber-500 transition-all rounded-lg text-[14px] font-black uppercase tracking-widest shadow-xl shadow-amber-900/20 active:scale-95"
                 >
                     Bölgeleri Kopyala
                 </button>
-                {brushStatus && <div className="text-[10px] text-emerald-400 text-center">{brushStatus}</div>}
+                {brushStatus && <div className="text-[12px] text-emerald-400 text-center">{brushStatus}</div>}
              </div>
              
-             <div className="mt-2 text-[10px] italic text-zinc-500 border-l-2 border-emerald-500/20 pl-3 py-1">
+             <div className="mt-2 text-[12px] italic text-zinc-500 border-l-2 border-emerald-500/20 pl-3 py-1">
                 Aktif edildiğinde kamera hareketi kilitlenir. Haritaya sürükleyerek boyayabilirsiniz.
              </div>
           </div>
@@ -345,12 +341,12 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
         {/* Footer info */}
         <div className="pt-4 flex justify-between items-center opacity-40 border-t border-amber-500/10 mt-6">
           <div className="flex flex-col">
-            <span className="text-[8px] uppercase font-bold tracking-tighter">Kartografik Veri</span>
-            <span className="text-[9px] font-serif italic text-amber-200/40 uppercase">Aktif Velutan</span>
+            <span className="text-[12px] uppercase font-bold tracking-tighter">Kartografik Veri</span>
+            <span className="text-[12px] font-serif italic text-amber-200/40 uppercase">Aktif Velutan</span>
           </div>
           <div className="flex items-center gap-1.5 grayscale opacity-50">
              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-             <span className="text-[9px] font-black">CANLI</span>
+             <span className="text-[12px] font-black">CANLI</span>
           </div>
         </div>
       </div>

@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useMemo, useRef } from 'react';
+import { useCameraState } from '../map/cameraStore';
 
 interface VintageCompassProps {
-  rotation: number;
   onReset?: () => void;
 }
 
-const VintageCompass: React.FC<VintageCompassProps> = ({ rotation, onReset }) => {
+const VintageCompass: React.FC<VintageCompassProps> = ({ onReset }) => {
+  const rotation = useCameraState((s) => s.rotation);
   // Kamera azimutu (radyan) -> kadran açısı. Kamera saat yönünde döndükçe harita kuzeyi ekranda
   // saat yönünde kayar; bu yüzden kadran +açıyla döner. Açı -180/+180'de atlar: sürekli (unwrap)
   // tutulmazsa CSS geçişi kadranı 360 derece ters yönden çevirir.

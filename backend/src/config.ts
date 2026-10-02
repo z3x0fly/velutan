@@ -18,6 +18,8 @@ const ROOT = path.join(__dirname, '..');
 
 export const config = {
     port: Number(env.PORT) || 8000,
+    /** Docker içinde 0.0.0.0; doğrudan sunucuda 127.0.0.1 (yalnızca nginx erişsin) */
+    host: env.HOST || '0.0.0.0',
     jwtSecret: jwtSecret(),
     jwtExpiresIn: '12h' as const,
     dbPath: env.DB_PATH || path.join(ROOT, 'velutan.db'),

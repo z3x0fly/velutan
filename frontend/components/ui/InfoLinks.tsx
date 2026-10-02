@@ -33,7 +33,7 @@ export default function InfoLinks() {
                         <button
                             key={page.id}
                             onClick={() => setOpen(page)}
-                            className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-black/70 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] text-amber-500/80 backdrop-blur-sm transition-colors hover:border-amber-500 hover:text-amber-400"
+                            className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-black/70 px-3 py-1.5 text-[12px] font-black uppercase tracking-[0.15em] text-amber-500/80 transition-colors hover:border-amber-500 hover:text-amber-400"
                         >
                             <Icon size={12} /> {page.title}
                         </button>
@@ -45,7 +45,7 @@ export default function InfoLinks() {
                     rel="noopener noreferrer"
                     aria-label="GitHub"
                     title="GitHub"
-                    className="flex items-center justify-center rounded-full border border-amber-600/30 bg-black/70 p-1.5 text-amber-500/80 backdrop-blur-sm transition-colors hover:border-amber-500 hover:text-amber-400"
+                    className="flex items-center justify-center rounded-full border border-amber-600/30 bg-black/70 p-1.5 text-amber-500/80 transition-colors hover:border-amber-500 hover:text-amber-400"
                 >
                     <Github size={14} />
                 </a>
@@ -54,7 +54,7 @@ export default function InfoLinks() {
             {open &&
                 createPortal(
                     <div
-                        className="fixed inset-0 z-[15000] flex items-center justify-center bg-black/70 p-3 backdrop-blur-md md:p-10"
+                        className="fixed inset-0 z-[15000] flex items-center justify-center bg-black/70 p-3 md:p-10"
                         onClick={() => setOpen(null)}
                     >
                         <article
@@ -66,7 +66,7 @@ export default function InfoLinks() {
                             <button onClick={() => setOpen(null)} aria-label="Kapat" className="absolute right-4 top-4 text-amber-500 hover:text-white">
                                 <X size={22} />
                             </button>
-                            <div className="mb-1 text-[10px] font-black uppercase tracking-[0.35em] text-amber-500/60">{open.kicker}</div>
+                            <div className="mb-1 text-[12px] font-black uppercase tracking-[0.35em] text-amber-500/60">{open.kicker}</div>
                             <h2 className="mb-6 border-b border-amber-600/20 pb-4 font-serif text-3xl font-black text-amber-400">{open.title}</h2>
 
                             <div className="space-y-8">
@@ -92,7 +92,7 @@ export default function InfoLinks() {
                                                         key={l.href}
                                                         href={l.href}
                                                         {...(l.href.startsWith('mailto:') ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
-                                                        className="rounded-full border border-amber-600/40 px-3 py-1 text-xs font-bold text-amber-400 hover:bg-amber-600/10"
+                                                        className="rounded-full border border-amber-600/40 px-3 py-1 text-sm font-bold text-amber-400 hover:bg-amber-600/10"
                                                     >
                                                         {l.label}{l.href.startsWith('mailto:') ? '' : ' ↗'}
                                                     </a>

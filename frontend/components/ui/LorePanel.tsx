@@ -47,7 +47,7 @@ const LorePanel: React.FC<LorePanelProps> = ({ region, onClose }) => {
             </div>
           )}
           <div className="relative z-10 p-6 md:p-10 flex flex-col justify-end h-full overflow-y-auto custom-scrollbar">
-            <span className="text-xs font-bold tracking-[0.5em] text-amber-500/60 uppercase mb-4">Bölge Atlası</span>
+            <span className="text-sm font-bold tracking-[0.5em] text-amber-500/60 uppercase mb-4">Bölge Atlası</span>
             <h2 className="text-3xl md:text-4xl font-serif font-black text-gold uppercase tracking-tighter leading-none mb-4 drop-shadow-lg break-words">
               {region.name}
             </h2>
@@ -57,7 +57,7 @@ const LorePanel: React.FC<LorePanelProps> = ({ region, onClose }) => {
             {panoramas.length > 0 && (
               <button
                 onClick={() => setPanoIndex(0)}
-                className="mt-6 self-start flex items-center gap-2 rounded-full bg-amber-600 hover:bg-amber-500 px-5 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg"
+                className="mt-6 self-start flex items-center gap-2 rounded-full bg-amber-600 hover:bg-amber-500 px-5 py-2 text-sm font-black uppercase tracking-widest text-white shadow-lg"
               >
                 <Compass size={16} /> 360° Gez ({panoramas.length})
               </button>
@@ -86,7 +86,7 @@ const LorePanel: React.FC<LorePanelProps> = ({ region, onClose }) => {
                         <div className="aspect-[3/4] rounded-lg overflow-hidden border border-amber-500/20 bg-black/40">
                           <img src={img.src} alt={img.alt} loading="lazy" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                         </div>
-                        <div className="mt-1 text-[11px] font-serif text-amber-100/70 truncate">{img.alt}</div>
+                        <div className="mt-1 text-[13px] font-serif text-amber-100/70 truncate">{img.alt}</div>
                       </button>
                     ))}
                   </div>
@@ -119,14 +119,14 @@ const LorePanel: React.FC<LorePanelProps> = ({ region, onClose }) => {
                   <button key={p.id} onClick={() => setPanoIndex(i)} className="group text-left">
                     <div className="relative aspect-[2/1] rounded-lg overflow-hidden border border-amber-500/20">
                       <img src={mediaUrl(p.thumb) ?? mediaUrl(p.image)} alt={p.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                      <span className="absolute top-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-black text-amber-400">360°</span>
+                      <span className="absolute top-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[12px] font-black text-amber-400">360°</span>
                     </div>
-                    <div className="mt-1 text-[12px] font-serif text-amber-100/80 truncate">{p.title}</div>
+                    <div className="mt-1 text-[14px] font-serif text-amber-100/80 truncate">{p.title}</div>
                   </button>
                 ))}
               </div>
               {panoramas.some((p) => p.image.startsWith('/static/panoramas/seed/')) && (
-                <p className="mt-3 text-[11px] text-amber-100/40">
+                <p className="mt-3 text-[13px] text-amber-100/40">
                   360° görüntülerin kaynağı:{' '}
                   <a href="https://velutanmap.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-300">
                     velutanmap.com
@@ -138,7 +138,7 @@ const LorePanel: React.FC<LorePanelProps> = ({ region, onClose }) => {
         </div>
       </div>
 
-      {/* Panel backdrop-filter kullanıyor; fixed öğeler panel içinde kalmasın diye body'ye portal */}
+      {/* Panel içindeki fixed öğeler kırpılmasın diye body'ye portal */}
       {zoomed && createPortal(
         <div className="fixed inset-0 z-[11500] bg-black/90 flex items-center justify-center p-6" onClick={() => setZoomed(null)}>
           <figure className="max-w-3xl max-h-full flex flex-col items-center">

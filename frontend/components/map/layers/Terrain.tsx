@@ -6,19 +6,18 @@ import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
 import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HEIGHT_URL } from '../terrain/heightField';
-import { QualityTier, textureSize } from '../terrain/quality';
 import { mapAsset } from '../media';
 
 interface TerrainProps {
-    quality: QualityTier;
+    textureSize: 4096 | 2048;
+    segments: [number, number];
 }
 
 /**
  * Yükseltili zemin: isimsiz boyalı harita dokusu (su + kara + yollar + dağ çizimleri + çerçeve),
  * yükselti haritasıyla gerçek 3D röliefe dönüşür. İsimler ayrı katmandadır (Labels.tsx).
  */
-const Terrain = React.memo(({ quality }: TerrainProps) => {
-    const size = textureSize(quality);
+const Terrain = React.memo(({ textureSize: size, segments }: TerrainProps) => {
     const { gl } = useThree();
     // Girdi nesnesi sabit olmalı: her render'da yeni nesne giderse drei dokuları yeniden
     // GPU'ya yükler (zoom sırasında 4096px dokunun sürekli yüklenmesi = kasma).
@@ -40,7 +39,6 @@ const Terrain = React.memo(({ quality }: TerrainProps) => {
         }
     }, [map, height, normal, gl]);
 
-    const segments = quality === 'high' ? [512, 450] : [256, 225];
     const geometry = useMemo(() => {
         const g = new THREE.PlaneGeometry(WORLD_WIDTH, WORLD_HEIGHT, segments[0], segments[1]);
         g.rotateX(-Math.PI / 2);

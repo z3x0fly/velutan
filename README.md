@@ -54,6 +54,9 @@ velutan/
 - **Kalite seviyeleri:** Cihazın GPU belleğine ve doku limitine göre 4K / 2K doku seçilir. WebGL bağlamı kaybolursa kurtarma ekranı çıkar.
 - **Kronikler ve 360°:** Bölgeye tıklayınca kronikler, karakter galerisi ve eşdikdörtgen (equirectangular) panoramalar açılır.
 - **Seyahat:** Rota çiz; mesafe, arazi tipi ve tempoya göre süre hesaplanır, yolcu araziyi takip ederek ilerler.
+- **Zar Tepsisi:** Sürüklenebilir panel; d4–d100, avantaj/dezavantaj, yetenek puanından bonus (5e), kritik başarı/başarısızlık.
+- **Cihaza göre kalite:** Ekran kartına göre yüksek / orta / düşük / asgari kademe. Zayıf cihazlarda harita yalnızca hareket ettirilince çizilir, boştayken işlemciyi yormaz; FPS düşerse kademe kendiliğinden hafifler.
+- **Bölge sayfaları:** Her bölgenin arama motorlarının okuyabildiği kendi sayfası (`/bolge/...`), kronik ve görselleriyle.
 
 ### İçerik paneli (admin-panel)
 - **Roller:** *Yönetici* tüm içeriği ve kullanıcıları yönetir; *Editör* yalnızca içerik girer.
@@ -77,6 +80,7 @@ velutan/
 - **İsimler:** Zemine gömülü isimler dağlarla birlikte bükülüyordu; ayrı katmana taşındılar.
 - **Zoom takılması:** Her yakınlaştırmada 4K doku ekran kartına yeniden yükleniyordu; düzeltilince kare süresi 245 ms'den 15 ms'ye indi.
 - **Kaydırma kilitlenmesi:** Kamera kontrolü sürükleme ortasında yeniden bağlanıyor ve pan kalıcı olarak donuyordu.
+- **Mikro takılmalar:** Her zoom'da tüm arayüz yeniden çiziliyor, harita üstündeki bulanık paneller her karede yeniden hesaplanıyordu. Hepsi ayıklandı; güçlü bir ekran kartında bile 25 ms'yi aşan kare kalmadı.
 
 ---
 

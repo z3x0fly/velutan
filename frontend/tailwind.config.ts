@@ -9,7 +9,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ['Cinzel', 'serif', 'Georgia'],
+        serif: ['var(--font-book)', 'Georgia', 'serif'],
+        display: ['var(--font-display)', 'var(--font-book)', 'serif'],
       },
       colors: {
         gold: "#ffd700",

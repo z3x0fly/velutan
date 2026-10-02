@@ -154,9 +154,9 @@ const PanoramaViewer = ({ panoramas, index, regionName, onIndexChange, onClose }
             {/* Üst bar */}
             <div className="absolute top-0 inset-x-0 flex items-start justify-between p-4 md:p-6 bg-gradient-to-b from-black/80 to-transparent">
                 <div>
-                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/70">{regionName} · 360°</div>
+                    <div className="text-[12px] font-black uppercase tracking-[0.3em] text-amber-500/70">{regionName} · 360°</div>
                     <h3 className="font-serif text-2xl md:text-3xl font-black text-amber-50">{pano.title}</h3>
-                    <div className="text-[11px] text-amber-100/50 mt-1">
+                    <div className="text-[13px] text-amber-100/50 mt-1">
                         {index + 1} / {panoramas.length}
                         {isFromVelutanmap(pano) && (
                             <>
@@ -193,7 +193,7 @@ const PanoramaViewer = ({ panoramas, index, regionName, onIndexChange, onClose }
                                     title={p.title}
                                 >
                                     <img src={mediaUrl(p.thumb) ?? mediaUrl(p.image)} alt={p.title} loading="lazy" className="w-full h-16 object-cover" />
-                                    <div className="bg-black/80 text-[10px] text-amber-50 px-1 py-0.5 truncate">{p.title}</div>
+                                    <div className="bg-black/80 text-[12px] text-amber-50 px-1 py-0.5 truncate">{p.title}</div>
                                 </button>
                             ))}
                         </div>

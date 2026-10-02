@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { TREE_STRIDE } from '../generated/mapMeta';
@@ -133,9 +133,21 @@ function makeTreeMaterial(uniforms: { uTime: { value: number }; uGrow: { value: 
     return m;
 }
 
-const Forest = () => {
+/** Kademeli seyreltme: aynı ağaçlar her zaman aynı sırayla elenir (düzgün dağılım, titreme yok) */
+const keepTree = (i: number, fraction: number) => fraction >= 1 || ((Math.imul(i + 1, 2654435761) >>> 0) / 4294967296) < fraction;
+
+interface ForestProps {
+    /** Çizilecek ağaç oranı (zayıf cihazlarda < 1) */
+    fraction?: number;
+    /** Rüzgâr salınımı ve açılış büyüme animasyonu (sürekli kare gerektirir) */
+    wind?: boolean;
+}
+
+const Forest = ({ fraction = 1, wind = true }: ForestProps) => {
     const [trees, setTrees] = useState<TreeRecord[] | null>(null);
-    const uniforms = useMemo(() => ({ uTime: { value: 0 }, uGrow: { value: 0 } }), []);
+    const { invalidate } = useThree();
+    // Rüzgâr yoksa (yalnızca değişince çizilen kademe) ağaçlar doğrudan tam boy başlar
+    const uniforms = useMemo(() => ({ uTime: { value: 0 }, uGrow: { value: wind ? 0 : 1 } }), []); // eslint-disable-line react-hooks/exhaustive-deps
     const meshes = useRef<(THREE.InstancedMesh | null)[]>([]);
 
     useEffect(() => {
@@ -162,9 +174,11 @@ const Forest = () => {
     const groups = useMemo(() => {
         if (!trees) return null;
         const byKind: Record<number, TreeRecord[]> = { 0: [], 1: [], 2: [], 3: [] };
-        for (const t of trees) (byKind[t.kind] ?? byKind[TreeKind.Broadleaf]).push(t);
+        trees.forEach((t, i) => {
+            if (keepTree(i, fraction)) (byKind[t.kind] ?? byKind[TreeKind.Broadleaf]).push(t);
+        });
         return byKind;
-    }, [trees]);
+    }, [trees, fraction]);
 
     useEffect(() => {
         if (!groups) return;
@@ -179,7 +193,8 @@ const Forest = () => {
             if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
             mesh.computeBoundingSphere();
         });
-    }, [groups]);
+        invalidate();
+    }, [groups, invalidate]);
 
     useEffect(
         () => () => {
@@ -190,6 +205,7 @@ const Forest = () => {
     );
 
     useFrame((_, delta) => {
+        if (!wind) return;
         const d = Math.min(delta, 0.1);
         uniforms.uTime.value += d;
         if (trees && uniforms.uGrow.value < 1) uniforms.uGrow.value = Math.min(1, uniforms.uGrow.value + d * 0.6);

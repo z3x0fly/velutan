@@ -34,7 +34,7 @@ const PatchNotesModal = () => {
 
 
     return (
-        <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-in fade-in duration-500">
+        <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-black/80 animate-in fade-in duration-500">
             <div className="relative w-full max-w-2xl bg-[#120c06] border-2 border-[#a89361]/40 rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)]">
                 
                 {/* Header Decoration */}
@@ -45,7 +45,7 @@ const PatchNotesModal = () => {
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <Sparkles className="w-4 h-4 text-[#a89361]" />
-                                <span className="text-[#a89361]/60 text-[10px] uppercase font-black tracking-[0.3em]">Yeni Güncelleme Mevcut</span>
+                                <span className="text-[#a89361]/60 text-[12px] uppercase font-black tracking-[0.3em]">Yeni Güncelleme Mevcut</span>
                             </div>
                             <h2 className="text-3xl font-serif italic font-black text-white tracking-tight">
                                 Velutan <span className="text-[#a89361]">V{PATCH_VERSION}</span>
@@ -68,7 +68,7 @@ const PatchNotesModal = () => {
                                     </div>
                                     <div>
                                         <h3 className="text-[#a89361] font-bold text-sm mb-1 group-hover:translate-x-1 transition-transform">{note.title}</h3>
-                                        <p className="text-zinc-400 text-xs leading-relaxed font-serif italic">{note.desc}</p>
+                                        <p className="text-zinc-400 text-sm leading-relaxed font-serif italic">{note.desc}</p>
                                     </div>
                                 </div>
                             </div>
@@ -76,12 +76,12 @@ const PatchNotesModal = () => {
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-white/5 flex justify-between items-center">
-                        <div className="text-[9px] text-zinc-500 font-mono tracking-widest uppercase">
+                        <div className="text-[12px] text-zinc-500 font-mono tracking-widest uppercase">
                             © 2026 VELUTAN EKİBİ
                         </div>
                         <button 
                             onClick={handleClose}
-                            className="flex items-center gap-2 px-8 py-3 bg-[#a89361] hover:bg-[#c49b4d] text-black font-black uppercase tracking-widest text-[10px] rounded-full transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(168,147,97,0.3)]"
+                            className="flex items-center gap-2 px-8 py-3 bg-[#a89361] hover:bg-[#c49b4d] text-black font-black uppercase tracking-widest text-[12px] rounded-full transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(168,147,97,0.3)]"
                         >
                             Keşfetmeye Başla
                             <ChevronRight className="w-4 h-4" />

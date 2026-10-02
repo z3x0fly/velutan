@@ -2,7 +2,7 @@
 
 import React, { Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, MapControls, PerformanceMonitor } from '@react-three/drei';
+import { Html, MapControls, PerformanceMonitor, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 
@@ -13,8 +13,9 @@ import MapTravel from './MapTravel';
 import MapErrorBoundary from './MapErrorBoundary';
 import { from3D, to3D, WORLD_HEIGHT, WORLD_WIDTH } from './utils/coords';
 import { loadHeightField } from './terrain/heightField';
-import { detectQuality, QualityTier } from './terrain/quality';
+import { detectTier, QualitySettings, settingsFor, stepDown } from './terrain/quality';
 import type { MapPoint, Region } from './types';
+import { cameraStore } from './cameraStore';
 
 // Kamera: hedef etrafında küresel koordinat. Yaklaştıkça eğim artar (Runeterra tarzı).
 const MIN_DIST = 2.2;
@@ -32,9 +33,6 @@ const tiltFor = (dist: number) => {
 export interface MapCanvas3DProps {
     regions: Region[];
     onRegionClick: (region: Region) => void;
-    onRotationChange?: (rotation: number) => void;
-    /** 1 = açılış görünümü, büyüdükçe yakınlaşma */
-    onZoom?: (zoom: number) => void;
     isTravelMode?: boolean;
     travelPath?: MapPoint[];
     onTravelPointAdd?: (point: MapPoint) => void;
@@ -52,6 +50,9 @@ export interface MapCanvas3DHandle {
 type Controls = React.ElementRef<typeof MapControls>;
 
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.1);
+// Her karede yeniden kullanılan geçici nesneler (çöp toplayıcı takılmalarını önler)
+const _sph = new THREE.Spherical();
+const _off = new THREE.Vector3();
 
 /**
  * Eğim, sınırlar, sis, UI senkronu ve tekerlek zoom'u.
@@ -62,16 +63,12 @@ const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.1);
  */
 const CameraRig = ({
     controlsRef,
-    onRotationChange,
-    onZoom,
     onUserZoom,
 }: {
     controlsRef: React.RefObject<Controls>;
-    onRotationChange?: (r: number) => void;
-    onZoom?: (z: number) => void;
     onUserZoom?: () => void;
 }) => {
-    const { camera, scene, gl, raycaster } = useThree();
+    const { camera, scene, gl, raycaster, invalidate } = useThree();
     const last = useRef({ az: 0, zoom: 0, t: 0 });
     const zoom = useRef<{ dist: number | null; ndc: THREE.Vector2 }>({ dist: null, ndc: new THREE.Vector2() });
     const onUserZoomRef = useRef(onUserZoom);
@@ -108,10 +105,11 @@ const CameraRig = ({
             const dy = THREE.MathUtils.clamp(e.deltaY * unit * (e.ctrlKey ? 6 : 1), -240, 240);
             const from = zoom.current.dist ?? camera.position.distanceTo(c.target);
             zoom.current.dist = THREE.MathUtils.clamp(from * Math.pow(1.0014, dy), MIN_DIST, MAX_DIST);
+            invalidate();
         };
         host.addEventListener('wheel', onWheel, { capture: true, passive: false });
         return () => host.removeEventListener('wheel', onWheel, { capture: true });
-    }, [gl, camera, controlsRef]);
+    }, [gl, camera, controlsRef, invalidate]);
 
     // Geliştirme ortamında hata ayıklama için kamera/kontrol erişimi
     useEffect(() => {
@@ -139,10 +137,10 @@ const CameraRig = ({
             const k = 1 - Math.exp(-Math.min(delta, 0.05) * 10);
             const next = Math.exp(Math.log(cur) + (Math.log(z.dist) - Math.log(cur)) * k);
             const hadBefore = groundUnder(z.ndc, before) !== null;
-            const sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(c.target));
+            const sph = _sph.setFromVector3(_off.copy(camera.position).sub(c.target));
             sph.radius = next;
             sph.phi = tiltFor(next);
-            camera.position.copy(c.target).add(new THREE.Vector3().setFromSpherical(sph));
+            camera.position.copy(c.target).add(_off.setFromSpherical(sph));
             camera.updateMatrixWorld();
             // İmleç ufka yakınsa zemin noktası çok uzaktadır; oraya sabitlemek hedefi fırlatır.
             // Yalnızca makul mesafedeki noktalara sabitle, kare başı kaydırmayı da sınırla.
@@ -165,6 +163,7 @@ const CameraRig = ({
                 camera.position.z += dz;
             }
             if (Math.abs(z.dist - next) < 0.001 * next) z.dist = null;
+            else invalidate(); // 'demand' modunda animasyon sürsün
         }
 
         const dist = camera.position.distanceTo(c.target);
@@ -194,32 +193,41 @@ const CameraRig = ({
             const az = c.getAzimuthalAngle();
             if (Math.abs(az - last.current.az) > 0.01) {
                 last.current.az = az;
-                onRotationChange?.(az);
+                cameraStore.set({ rotation: az });
             }
             const zoom = START_DIST / dist;
             if (Math.abs(zoom - last.current.zoom) > 0.02) {
                 last.current.zoom = zoom;
-                onZoom?.(zoom);
+                cameraStore.set({ zoom });
             }
         }
     });
     return null;
 };
 
-const Traveler = ({ pos }: { pos: THREE.Vector3 }) => (
-    <group position={pos}>
-        <mesh position={[0, 0.12, 0]}>
-            <sphereGeometry args={[0.07, 16, 16]} />
-            <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={2} />
-        </mesh>
-        <pointLight color="#ffb347" intensity={1.5} distance={1.5} position={[0, 0.3, 0]} />
-        <Html center position={[0, 0.45, 0]} style={{ pointerEvents: 'none' }}>
-            <div className="bg-amber-600 text-white text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-amber-400/50 animate-pulse">
-                YOLCU
-            </div>
-        </Html>
-    </group>
-);
+/**
+ * Simülasyondaki yolcu. Konum her karede ref'ten okunur (React render'ı yok).
+ * Işık kaynağı EKLENMEZ: ışık sayısı değişince tüm malzemelerin shader'ı yeniden derlenir (donma).
+ */
+const Traveler = ({ posRef }: { posRef: React.MutableRefObject<THREE.Vector3> }) => {
+    const group = useRef<THREE.Group>(null);
+    useFrame(() => {
+        group.current?.position.copy(posRef.current);
+    });
+    return (
+        <group ref={group}>
+            <mesh position={[0, 0.12, 0]}>
+                <sphereGeometry args={[0.07, 16, 16]} />
+                <meshBasicMaterial color="#ffb347" toneMapped={false} />
+            </mesh>
+            <Html center position={[0, 0.45, 0]} style={{ pointerEvents: 'none' }}>
+                <div className="bg-amber-600 text-white text-[12px] font-black px-3 py-1 rounded-full whitespace-nowrap shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-amber-400/50">
+                    YOLCU
+                </div>
+            </Html>
+        </group>
+    );
+};
 
 const LoadingLabel = () => (
     <Html center>
@@ -228,13 +236,15 @@ const LoadingLabel = () => (
 );
 
 const SceneContents = ({
-    quality,
+    settings,
     props,
-    simPos,
+    simActive,
+    simPosRef,
 }: {
-    quality: QualityTier;
+    settings: QualitySettings;
     props: MapCanvas3DProps;
-    simPos: THREE.Vector3 | null;
+    simActive: boolean;
+    simPosRef: React.MutableRefObject<THREE.Vector3>;
 }) => (
     <>
         <hemisphereLight args={['#fff4dc', '#3a3020', 0.9]} />
@@ -242,11 +252,11 @@ const SceneContents = ({
         <directionalLight position={[12, 8, 14]} intensity={0.35} color="#9fb4d0" />
 
         <Suspense fallback={<LoadingLabel />}>
-            <MapLayers quality={quality} />
+            <MapLayers settings={settings} />
         </Suspense>
         <MapMarkers regions={props.regions} onRegionClick={props.onRegionClick} />
         <MapTravel path={props.travelPath ?? []} isTravelMode={!!props.isTravelMode} />
-        {simPos && <Traveler pos={simPos} />}
+        {simActive && <Traveler posRef={simPosRef} />}
         {props.brushEnabled && <BrushTool />}
 
         {props.isTravelMode && (
@@ -267,17 +277,16 @@ const SceneContents = ({
     </>
 );
 
-const QualityProbe = ({ onDetect }: { onDetect: (q: QualityTier) => void }) => {
-    const { gl } = useThree();
-    useEffect(() => onDetect(detectQuality(gl)), [gl, onDetect]);
-    return null;
-};
-
-const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props, ref) => {
+/**
+ * next/dynamic ile ayrı parça olarak yüklenir (ilk sayfa JS'i küçük kalsın). dynamic() ref iletmediği için
+ * imperatif API `apiRef` prop'u ile verilir.
+ */
+const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DHandle> }) => {
     const controlsRef = useRef<Controls>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
     const tween = useRef<gsap.core.Animation | null>(null);
-    const [simPos, setSimPos] = useState<THREE.Vector3 | null>(null);
+    const [simActive, setSimActive] = useState(false);
+    const simPosRef = useRef(new THREE.Vector3());
     const simulating = useRef(false);
 
     // Kullanıcı devraldı: sinematik geçişi durdur (simülasyon hariç).
@@ -287,8 +296,38 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
     const handleControlsStart = useCallback(() => {
         if (!simulating.current) tween.current?.kill();
     }, []);
-    const [quality, setQuality] = useState<QualityTier | null>(null);
-    const [dpr, setDpr] = useState(() => (typeof window === 'undefined' ? 1 : Math.min(window.devicePixelRatio || 1, 1.75)));
+    const [settings, setSettings] = useState<QualitySettings | null>(null);
+    const [dpr, setDpr] = useState(1);
+
+    // Kalite kademesi WebGL bağlamı açılmadan önce belirlenir (antialias/çizim döngüsü buna bağlı)
+    useEffect(() => {
+        const { tier, renderer } = detectTier();
+        const s = settingsFor(tier);
+        console.info(`[Velutan] kalite: ${tier} (${renderer})`);
+        setSettings(s);
+        setDpr(Math.min(window.devicePixelRatio || 1, s.maxDpr));
+    }, []);
+
+    // FPS izleme, harita yüklemesi BİTTİKTEN 4 sn sonra başlar: dokular GPU'ya yüklenirken ve
+    // shader'lar derlenirken kareler doğal olarak yavaştır; güçlü cihazı yanlışlıkla düşürmesin.
+    const { active: loading } = useProgress();
+    const [monitorReady, setMonitorReady] = useState(false);
+    useEffect(() => {
+        if (!settings || loading || monitorReady) return;
+        const t = setTimeout(() => setMonitorReady(true), 4000);
+        return () => clearTimeout(t);
+    }, [!!settings, loading, monitorReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Sürekli düşük FPS: bir kademe hafiflet (doku/zemin değişmez, ağaç/animasyon/çözünürlük düşer)
+    const handleDecline = useCallback(() => {
+        setDpr(1);
+        setSettings((cur) => {
+            if (!cur || cur.tier === 'low' || cur.tier === 'minimal') return cur;
+            const next = settingsFor(stepDown(cur.tier));
+            console.info(`[Velutan] FPS düşük, kalite: ${next.tier}`);
+            return { ...next, textureSize: cur.textureSize, terrainSegments: cur.terrainSegments, antialias: cur.antialias };
+        });
+    }, []);
     const onSimulationEnd = useRef(props.onSimulationEnd);
     onSimulationEnd.current = props.onSimulationEnd;
 
@@ -320,8 +359,8 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
             ease: 'power3.inOut',
             onUpdate: () => {
                 c.target.set(state.tx, 0, state.tz);
-                const s = new THREE.Spherical(state.r, tiltFor(state.r), state.th);
-                cam.position.copy(c.target).add(new THREE.Vector3().setFromSpherical(s));
+                _sph.set(state.r, tiltFor(state.r), state.th);
+                cam.position.copy(c.target).add(_off.setFromSpherical(_sph));
                 c.update();
             },
         });
@@ -329,7 +368,7 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
 
     // Açılış: yüksekten süzülerek gel
     useEffect(() => {
-        if (!quality) return;
+        if (!settings) return;
         const id = requestAnimationFrame(() => {
             const cam = cameraRef.current;
             const c = controlsRef.current;
@@ -339,9 +378,9 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
             animateTo(new THREE.Vector3(0, 0, 0), START_DIST, 0, 2.6);
         });
         return () => cancelAnimationFrame(id);
-    }, [quality]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [!!settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    useImperativeHandle(ref, () => ({
+    useImperativeHandle(props.apiRef, () => ({
         // Pusula: yalnızca kuzeyi yukarı çevir; yakınlık ve konum korunur
         resetRotation: () => {
             const c = controlsRef.current;
@@ -356,6 +395,9 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
             tween.current?.kill();
             if (path.length < 2) return;
             simulating.current = true;
+            const simPoint = new THREE.Vector3();
+            simPosRef.current.set(0, -100, 0); // ilk kareye kadar görünmesin
+            setSimActive(true);
             const field = await loadHeightField().catch(() => null);
             const pts = path.map((p) => {
                 const [x, , z] = to3D(p.x, p.y);
@@ -377,11 +419,11 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
                 onUpdate: () => {
                     let rest = state.d, i = 0;
                     while (i < lengths.length - 1 && rest > lengths[i]) rest -= lengths[i++];
-                    const p = pts[i].clone().lerp(pts[i + 1], lengths[i] ? Math.min(rest / lengths[i], 1) : 1);
+                    const p = simPoint.copy(pts[i]).lerp(pts[i + 1], lengths[i] ? Math.min(rest / lengths[i], 1) : 1);
                     p.y = Math.max(field?.sample(p.x, p.z) ?? 0, 0);
-                    setSimPos(p);
+                    simPosRef.current.copy(p);
                     if (c && cam) {
-                        const delta = new THREE.Vector3(p.x - c.target.x, 0, p.z - c.target.z);
+                        const delta = _off.set(p.x - c.target.x, 0, p.z - c.target.z);
                         c.target.add(delta);
                         cam.position.add(delta);
                         c.update();
@@ -389,7 +431,7 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
                 },
                 onComplete: () => {
                     simulating.current = false;
-                    setSimPos(null);
+                    setSimActive(false);
                     tween.current = null;
                     onSimulationEnd.current?.();
                 },
@@ -399,7 +441,7 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
             simulating.current = false;
             tween.current?.kill();
             tween.current = null;
-            setSimPos(null);
+            setSimActive(false);
         },
     }));
 
@@ -410,20 +452,24 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
     return (
         <div className="w-full h-full bg-[#0d1218]">
             <MapErrorBoundary>
+                {settings && (
                 <Canvas
                     flat
-                    dpr={dpr}
+                    dpr={Math.min(dpr, settings.maxDpr)}
+                    frameloop={settings.frameloop}
                     camera={{ fov: 40, near: 0.05, far: 400, position: initialCamera.toArray() }}
-                    gl={{ antialias: true, powerPreference: 'high-performance', stencil: false }}
+                    gl={{ antialias: settings.antialias, powerPreference: 'high-performance', stencil: false }}
                     onCreated={({ camera, gl }) => {
                         cameraRef.current = camera as THREE.PerspectiveCamera;
                         gl.setClearColor('#0d1218');
                     }}
                 >
                     <fog attach="fog" args={['#0d1218', 30, 120]} />
-                    {/* Sürekli düşük FPS'te bir kez çözünürlüğü düşür; ileri-geri zıplamasın */}
-                    <PerformanceMonitor flipflops={2} onDecline={() => setDpr(1)} onFallback={() => setDpr(1)} />
-                    <QualityProbe onDetect={setQuality} />
+                    {/* Sürekli düşük FPS: kademe hafifler; ileri-geri zıplamasın diye en fazla 2 kez */}
+                    {settings.frameloop === 'always' && monitorReady && (
+                        // 20 x 250 ms = 5 sn boyunca ortalama 25 FPS altı: gerçek zorlanma
+                        <PerformanceMonitor bounds={() => [25, 45]} iterations={20} flipflops={3} onDecline={handleDecline} />
+                    )}
 
                     <MapControls
                         ref={controlsRef}
@@ -438,18 +484,15 @@ const MapCanvas3D = React.forwardRef<MapCanvas3DHandle, MapCanvas3DProps>((props
                     />
                     <CameraRig
                         controlsRef={controlsRef}
-                        onRotationChange={props.onRotationChange}
-                        onZoom={props.onZoom}
                         onUserZoom={handleControlsStart}
                     />
 
-                    {quality && <SceneContents quality={quality} props={props} simPos={simPos} />}
+                    <SceneContents settings={settings} props={props} simActive={simActive} simPosRef={simPosRef} />
                 </Canvas>
+                )}
             </MapErrorBoundary>
         </div>
     );
-});
-
-MapCanvas3D.displayName = 'MapCanvas3D';
+};
 
 export default MapCanvas3D;

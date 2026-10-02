@@ -49,13 +49,13 @@ export default class MapErrorBoundary extends React.Component<{ children: React.
                     <div className="flex flex-wrap justify-center gap-3 pt-2">
                         <button
                             onClick={() => window.location.reload()}
-                            className="rounded-lg bg-amber-600 px-5 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-amber-500"
+                            className="rounded-lg bg-amber-600 px-5 py-2 text-sm font-black uppercase tracking-widest text-white hover:bg-amber-500"
                         >
                             Yeniden dene
                         </button>
                         <button
                             onClick={this.retryLow}
-                            className="rounded-lg border border-amber-600/40 px-5 py-2 text-xs font-black uppercase tracking-widest text-amber-400 hover:bg-amber-600/10"
+                            className="rounded-lg border border-amber-600/40 px-5 py-2 text-sm font-black uppercase tracking-widest text-amber-400 hover:bg-amber-600/10"
                         >
                             Düşük kalitede aç
                         </button>

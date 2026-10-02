@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: dark;
   --gold: #ffd700;
-  --panel-bg: rgba(5, 10, 15, 0.85);
+  --panel-bg: rgba(7, 9, 12, 0.94);
 }
 
 body {
@@ -12,18 +13,32 @@ body {
   padding: 0;
   background: #050505;
   color: #f0ead6;
-  overflow: hidden;
   font-family: 'Inter', sans-serif;
+}
+
+/* Koyu mod eklentilerine karşı koruma: bazıları sayfaya invert/hue-rotate filtresi uygular
+   ve WebGL haritayı karartır ya da renkleri bozar */
+html,
+body,
+canvas {
+  filter: none !important;
+}
+
+/* Kaydırma kilidi yalnızca tam ekran harita sayfasında (bölge sayfaları normal kayar) */
+html.map-page,
+html.map-page body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .text-gold {
   color: var(--gold);
 }
 
+/* backdrop-filter KULLANILMAZ: arkasında her karede değişen WebGL canvas'ı varken tarayıcı
+   bulanıklığı her karede yeniden hesaplar (harita üzerinde gezinirken kasma) */
 .glass-panel {
   background: var(--panel-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 215, 0, 0.2);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
 }
@@ -66,4 +81,78 @@ body {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* Zar Tepsisi animasyonları */
+@keyframes dice-roll {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(200deg) scale(1.12); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes dice-land {
+  0% { transform: scale(1.25) rotate(-8deg); }
+  60% { transform: scale(0.95) rotate(3deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes dice-glow {
+  0%, 100% { text-shadow: 0 0 8px rgba(250, 204, 21, 0.6); }
+  50% { text-shadow: 0 0 22px rgba(250, 204, 21, 1); }
+}
+.dice-rolling { animation: dice-roll 0.35s linear infinite; }
+.dice-land { animation: dice-land 0.35s ease-out; }
+.dice-glow { animation: dice-glow 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .dice-rolling, .dice-land, .dice-glow { animation: none; }
+}
+@keyframes dice-wobble {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-14deg); }
+  60% { transform: rotate(10deg); }
+}
+.group:hover .dice-wobble { display: inline-block; animation: dice-wobble 0.6s ease-in-out; }
+
+/* ===== Velutan arayüz malzemeleri (el çizimi harita diline uygun: deri, pirinç, tahta) ===== */
+.vl-leather {
+  background:
+    radial-gradient(120% 80% at 15% 0%, rgba(120, 80, 35, 0.22), transparent 60%),
+    radial-gradient(100% 70% at 100% 100%, rgba(0, 0, 0, 0.5), transparent 60%),
+    linear-gradient(160deg, #22170d 0%, #150e08 55%, #0e0905 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(201, 163, 90, 0.6),
+    inset 0 0 0 4px #0d0805,
+    inset 0 0 0 5px rgba(201, 163, 90, 0.22),
+    0 24px 70px rgba(0, 0, 0, 0.9);
+}
+.vl-plaque {
+  background: linear-gradient(180deg, #2a1c0f 0%, #160f08 100%);
+  border: 1px solid rgba(201, 163, 90, 0.7);
+  box-shadow:
+    inset 0 0 0 2px #0e0905,
+    inset 0 0 0 3px rgba(201, 163, 90, 0.2),
+    0 6px 18px rgba(0, 0, 0, 0.65);
+}
+.vl-plaque:hover { border-color: #e2c178; }
+.vl-tray {
+  background: radial-gradient(ellipse at 50% 30%, #3a2914 0%, #140d06 72%);
+  border: 6px solid #2b1c0e;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 8px 22px rgba(0, 0, 0, 0.9),
+    inset 0 0 0 1px rgba(201, 163, 90, 0.25),
+    0 0 0 1px rgba(201, 163, 90, 0.35);
+}
+.vl-seal {
+  background: linear-gradient(180deg, #6a4419 0%, #3d250c 100%);
+  border: 1px solid #c9a35a;
+  color: #f4e2b5;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 160, 0.3),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45),
+    0 3px 10px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.vl-seal:hover:not(:disabled) { background: linear-gradient(180deg, #7b501d 0%, #48300f 100%); }
+.vl-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 163, 90, 0.7), transparent);
 }

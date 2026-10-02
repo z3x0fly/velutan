@@ -19,7 +19,10 @@ interface LabelData {
     items: LabelItem[];
 }
 
-const LIFT = 0.05;
+// İsimler zemine yakın durur: altındaki en yüksek noktanın tamamı yerine bir kısmı kadar yükselir.
+// Derinlik testi kapalı olduğundan dağın arkasında kalsa da okunur (harita etiketi gibi).
+const HEIGHT_SHARE = 0.6;
+const LIFT = 0.02;
 
 /**
  * Haritadaki isimler (MP_7_labels): zeminden ayrı, her kelime grubu kendi altındaki en yüksek noktanın
@@ -55,7 +58,7 @@ const Labels = () => {
         const uv = new Float32Array(n * 4 * 2);
         const index: number[] = [];
         data.items.forEach((it, i) => {
-            const y = Math.max(it.h * DISPLACEMENT_SCALE + DISPLACEMENT_BIAS, 0) + LIFT;
+            const y = Math.max(it.h * HEIGHT_SHARE * DISPLACEMENT_SCALE + DISPLACEMENT_BIAS, 0) + LIFT;
             const [ax, , az] = to3D(it.x0, it.y0);
             const [bx, , bz] = to3D(it.x1, it.y1);
             // sol-üst, sağ-üst, sol-alt, sağ-alt
@@ -75,7 +78,7 @@ const Labels = () => {
     }, [data]);
 
     const material = useMemo(
-        () => new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, alphaTest: 0.02, fog: false }),
+        () => new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, depthTest: false, alphaTest: 0.02, fog: false }),
         [texture],
     );
 
@@ -85,13 +88,16 @@ const Labels = () => {
     useEffect(() => () => material.dispose(), [material]);
 
     // Çok yakında boyalı isimler biraz soluklaşır; işaretçi etiketleri öne çıkar
-    useFrame(({ camera }) => {
+    useFrame(({ camera, invalidate }) => {
         const target = camera.position.y < 5 ? 0.45 + (camera.position.y / 5) * 0.55 : 1;
-        material.opacity += (target - material.opacity) * 0.1;
+        const diff = target - material.opacity;
+        if (Math.abs(diff) < 0.005) return;
+        material.opacity += diff * 0.1;
+        invalidate();
     });
 
     if (!geometry) return null;
-    return <mesh geometry={geometry} material={material} renderOrder={5} />;
+    return <mesh geometry={geometry} material={material} renderOrder={20} />;
 };
 
 export default Labels;

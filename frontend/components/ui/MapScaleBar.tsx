@@ -2,17 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { MAP_WIDTH_KM, WORLD_WIDTH } from '../map/utils/coords';
+import { useCameraState } from '../map/cameraStore';
 
 // MapCanvas3D ile aynı: açılış mesafesi ve dikey görüş açısı
 const START_DIST = 34;
 const FOV_DEG = 40;
 
-interface MapScaleBarProps {
-    zoom: number;
-    initialZoom: number;
-}
-
-const MapScaleBar = ({ zoom, initialZoom }: MapScaleBarProps) => {
+const MapScaleBar = () => {
+    const zoom = useCameraState((s) => Math.round(s.zoom * 50) / 50);
+    const initialZoom = 1;
     const [viewportH, setViewportH] = useState(900);
     useEffect(() => {
         const update = () => setViewportH(window.innerHeight);
@@ -48,7 +46,7 @@ const MapScaleBar = ({ zoom, initialZoom }: MapScaleBarProps) => {
         >
             <div className="relative flex flex-col items-start gap-1">
                 {/* Distance Labels */}
-                <div className="flex justify-between w-full px-0.5 text-[12px] font-serif font-black text-white tracking-widest uppercase drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
+                <div className="flex justify-between w-full px-0.5 text-[14px] font-serif font-black text-white tracking-widest uppercase drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
                     <span className="flex flex-col items-center">
                         0
                         <div className="w-[1.5px] h-1.5 bg-white" />
@@ -84,9 +82,9 @@ const MapScaleBar = ({ zoom, initialZoom }: MapScaleBarProps) => {
 
                 {/* Metadata */}
                 <div className="mt-1 flex items-center gap-3 opacity-90">
-                    <span className="text-[10px] font-bold tracking-[0.2em] text-white/80 uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">Kartografik Veri</span>
+                    <span className="text-[12px] font-bold tracking-[0.2em] text-white/80 uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">Kartografik Veri</span>
                     <div className="h-[1px] w-8 bg-white/40" />
-                    <span className="text-[11px] font-serif italic text-amber-300 tracking-wider font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">{(zoom / initialZoom).toFixed(2)}x Büyütme</span>
+                    <span className="text-[13px] font-serif italic text-amber-300 tracking-wider font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">{(zoom / initialZoom).toFixed(2)}x Büyütme</span>
                 </div>
             </div>
 

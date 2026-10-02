@@ -3,6 +3,7 @@
  *   npm run seed                  eksik slug'ları ekler (mevcutlara dokunmaz)
  *   npm run seed -- --force       mevcut slug'ları da seed içeriğiyle günceller
  *   npm run seed -- --remove-demo eski 2D haritanın deneme kayıtlarını siler
+ *   npm run seed -- --enrich      mevcut kayıtlara dokunmadan boş kapakları doldurur, lore'a eksik görsel satırlarını ekler
  * 360° panoramalar seed/panoramas.json'dan (kaynak: velutanmap.com) eklenir.
  */
 import fs from 'fs';
@@ -21,6 +22,29 @@ const find = db.prepare('SELECT id FROM regions WHERE slug = ?');
 const insert = db.prepare(
     'INSERT INTO regions (name, slug, description, lore, image, type, x, y, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
 );
+const enrich = db.prepare('UPDATE regions SET image = ?, lore = ? WHERE id = ?');
+const current = db.prepare('SELECT image, lore FROM regions WHERE id = ?');
+
+/** Seed lore'undaki görsel satırlarından mevcut lore'da olmayanları ekler (metne dokunmaz). */
+function mergeImageLines(existing: string, seedLore: string): string {
+    const NL = String.fromCharCode(10);
+    const isImage = (l: string) => /^!\[.*\]\(.*\)$/.test(l.trim());
+    const missing = seedLore.split(NL).filter(isImage).filter((l) => !existing.includes(l));
+    if (missing.length === 0) return existing;
+    const lines = existing.split(NL);
+    let lastImg = -1;
+    lines.forEach((l, i) => {
+        if (isImage(l)) lastImg = i;
+    });
+    if (lastImg >= 0) {
+        lines.splice(lastImg + 1, 0, ...missing);
+        return lines.join(NL);
+    }
+    const at = existing.lastIndexOf(NL + NL + 'Kaynak:');
+    const block = NL + NL + missing.join(NL);
+    return at >= 0 ? existing.slice(0, at) + block + existing.slice(at) : existing + block;
+}
+
 const update = db.prepare('UPDATE regions SET name = ?, description = ?, lore = ?, image = ?, type = ?, x = ?, y = ? WHERE id = ?');
 
 db.exec('BEGIN');
@@ -40,6 +64,14 @@ try {
         } else if (args.has('--force')) {
             update.run(r.name!, r.description ?? '', r.lore ?? '', r.image ?? '', r.type ?? 'city', r.x!, r.y!, existing.id);
             updated++;
+        } else if (args.has('--enrich')) {
+            const cur = current.get(existing.id) as { image: string | null; lore: string | null };
+            const image = cur.image || r.image || '';
+            const lore = mergeImageLines(cur.lore ?? '', r.lore ?? '');
+            if (image !== (cur.image ?? '') || lore !== (cur.lore ?? '')) {
+                enrich.run(image, lore, existing.id);
+                updated++;
+            } else skipped++;
         } else {
             skipped++;
         }

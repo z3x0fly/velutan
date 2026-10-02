@@ -62,7 +62,7 @@ const fragmentShader = /* glsl */ `
     }
 `;
 
-const Water = () => {
+const Water = ({ animate = true }: { animate?: boolean }) => {
     const material = useMemo(
         () =>
             new THREE.ShaderMaterial({
@@ -84,6 +84,7 @@ const Water = () => {
     );
 
     useFrame((_, delta) => {
+        if (!animate) return;
         material.uniforms.uTime.value += Math.min(delta, 0.1);
     });
 

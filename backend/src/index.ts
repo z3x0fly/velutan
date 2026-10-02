@@ -80,6 +80,6 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     res.status(500).json({ error: 'Sunucu hatası' });
 });
 
-app.listen(config.port, () => {
-    console.log(`Velutan API http://localhost:${config.port} (CORS: ${config.corsOrigins.join(', ')})`);
+app.listen(config.port, config.host, () => {
+    console.log(`Velutan API http://${config.host}:${config.port} (CORS: ${config.corsOrigins.join(', ')})`);
 });
