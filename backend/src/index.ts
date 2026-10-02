@@ -11,6 +11,7 @@ import authRouter from './routes/auth';
 import panoramasRouter from './routes/panoramas';
 import territoriesRouter from './routes/territories';
 import masaRouter from './routes/masa';
+import loreRouter from './routes/lore';
 
 fs.mkdirSync(path.join(config.staticDir, 'images'), { recursive: true });
 ensureAdmin();
@@ -63,6 +64,7 @@ app.use('/auth', authRouter);
 app.use('/regions', regionsRouter);
 app.use('/panoramas', panoramasRouter);
 app.use('/territories', territoriesRouter);
+app.use('/lore', loreRouter);
 
 app.get('/', (_req, res) => {
     res.json({ message: 'Velutan World Map API' });

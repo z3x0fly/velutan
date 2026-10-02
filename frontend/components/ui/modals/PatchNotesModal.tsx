@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.5.7';
+    const PATCH_VERSION = '1.5.8';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,8 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: '360° mekânlarda gezinti', desc: "Street View gibi: mekândaki oklu halkaya bas, bakış oraya dönüp yaklaşır ve bağlı mekâna geçersin (ör. Kahel: Harabeler → Koridor → Salon → Malphasius). 'i' halkası wiki kaydını açar: karakter, yer, hikâye; metindeki bağlantılar ve ilgili kayıtlar aynı pencerede açılır. Noktalar ve kayıtlar velutanmap.com'dan canlı geliyor, orada eklendikçe burada da görünür." },
+                { title: 'Doğru bakış yönü', desc: "360° mekânlar artık velutanmap.com'daki gibi görselin ortasından, asıl sahneye bakarak açılıyor." },
                 { title: 'Sade arayüz', desc: "Harita artık arayüzün altında kalmıyor: Seyahat, Lejant ve Defter sol üstte ince bir çubuk, bir sekmeye basınca açılıyor. Teşekkürler, Kim Yaptı?, Meraklısına ve GitHub tek 'Hakkında' menüsünde; zar, ayarlar, müzik, pusula ve logo küçüldü." },
                 { title: 'Günlükte geçmiş zarlar', desc: 'Savaş günlüğündeki her satırın altında o anda atılan zarlar şekilleriyle duruyor: hangi zar, kaç geldi; doğal 20 altın, doğal 1 kırmızı. Ortak masada oyuncuların zarları da.' },
                 { title: 'Ortak masa: oyuncular kendi ekranından', desc: "GM 'Oyuncuları davet et' der, bağlantıyı paylaşır. Oyuncular adını yazıp karakterini seçer; aynı mekânda aynı savaşı canlı görür, kendi karakterini yürütür, zarını atar. Atılan her zar herkesin ekranına ve günlüğe düşer." },

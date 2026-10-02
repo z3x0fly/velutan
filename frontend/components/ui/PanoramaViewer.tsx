@@ -19,6 +19,9 @@ import { useBattleController } from './panorama/useBattleController';
 import { RULES_OFF } from './panorama/rules';
 import { GmSession, JoinDialog, PlayerSession } from './panorama/SessionUI';
 import { sessionStore } from './panorama/session';
+import HotspotMarkers from './panorama/HotspotMarkers';
+import LoreEntryModal from './panorama/LoreEntryModal';
+import { Hotspot, useHotspots, yawToLon } from './panorama/hotspots';
 
 const GUIDE_SEEN = 'velutan_savas_rehber';
 
@@ -28,14 +31,17 @@ const MAX_FOV = 95;
 /** Velutanmap.com'dan içe aktarılan panoramalar seed klasöründe tutulur */
 const isFromVelutanmap = (p: Panorama) => p.image.startsWith('/static/panoramas/seed/');
 
+type View = { lon: number; lat: number; targetFov: number; aim?: { lon: number; lat: number } };
+
 /**
  * Eşdikdörtgen (equirectangular) görseli kürenin içine giydirir. Sürükleyerek bakılır, tekerlekle FOV değişir.
  * Dokular önbelleğe alınmaz: panoramalar arasında gezinirken eskisi GPU'dan atılır.
+ * yaw/pitch velutanmap.com düzenindedir (yaw 0 görselin ortası); bakış açısına yawToLon ile çevrilir.
  */
-const Sphere = ({ url, yaw, pitch, lockRef, onLoaded, onError }: { url: string; yaw: number; pitch: number; lockRef: React.MutableRefObject<boolean>; onLoaded: () => void; onError: () => void }) => {
+const Sphere = ({ url, yaw, pitch, lockRef, viewRef, onLoaded, onError }: { url: string; yaw: number; pitch: number; lockRef: React.MutableRefObject<boolean>; viewRef: React.MutableRefObject<View>; onLoaded: () => void; onError: () => void }) => {
     const [texture, setTexture] = useState<THREE.Texture | null>(null);
     const { camera, gl } = useThree();
-    const view = useRef({ lon: yaw, lat: pitch, targetFov: 75 });
+    const view = viewRef;
 
     useEffect(() => {
         let alive = true;
@@ -53,7 +59,7 @@ const Sphere = ({ url, yaw, pitch, lockRef, onLoaded, onError }: { url: string; 
             undefined,
             () => alive && onError(),
         );
-        view.current = { lon: yaw, lat: pitch, targetFov: 75 };
+        view.current = { lon: yawToLon(yaw), lat: pitch, targetFov: 75 };
         return () => {
             alive = false;
             loaded?.dispose();
@@ -67,6 +73,7 @@ const Sphere = ({ url, yaw, pitch, lockRef, onLoaded, onError }: { url: string; 
         const down = (e: PointerEvent) => {
             el.setPointerCapture(e.pointerId);
             drag = { x: e.clientX, y: e.clientY, lon: view.current.lon, lat: view.current.lat };
+            view.current.aim = undefined;
         };
         const move = (e: PointerEvent) => {
             // Token sürüklenirken bakış dönmez
@@ -93,10 +100,18 @@ const Sphere = ({ url, yaw, pitch, lockRef, onLoaded, onError }: { url: string; 
             el.removeEventListener('pointercancel', up);
             el.removeEventListener('wheel', wheel);
         };
-    }, [camera, gl, lockRef]);
+    }, [camera, gl, lockRef, view]);
 
     useFrame((_, delta) => {
         const cam = camera as THREE.PerspectiveCamera;
+        // Bir noktaya geçerken bakış yumuşakça oraya döner
+        const aim = view.current.aim;
+        if (aim) {
+            const a = 1 - Math.exp(-Math.min(delta, 0.05) * 9);
+            const dLon = ((((aim.lon - view.current.lon) % 360) + 540) % 360) - 180;
+            view.current.lon += dLon * a;
+            view.current.lat += (aim.lat - view.current.lat) * a;
+        }
         const phi = THREE.MathUtils.degToRad(90 - view.current.lat);
         const theta = THREE.MathUtils.degToRad(view.current.lon);
         cam.lookAt(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta));
@@ -138,6 +153,28 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
 
     // Savaş: ızgara, token'lar, kurallar ve hamleler (bu mekâna özel, tarayıcıda saklanır)
     const ctrl = useBattleController(pano?.slug ?? '', regionSlug);
+    const viewRef = useRef<View>({ lon: 0, lat: 0, targetFov: 75 });
+    // velutanmap.com'daki geçiş ve bilgi noktaları
+    const hotspots = useHotspots(pano?.slug);
+    const [loreSlug, setLoreSlug] = useState<string | null>(null);
+    const jumpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => {
+        if (jumpTimer.current) clearTimeout(jumpTimer.current);
+    }, []);
+    const gotoPanorama = (slug: string) => {
+        const i = panoramas.findIndex((p) => p.slug === slug);
+        if (i < 0) return false;
+        onIndexChange(i);
+        return true;
+    };
+    const pickHotspot = (h: Hotspot) => {
+        if (h.nav === 'info' || !panoramas.some((p) => p.slug === h.target.slug)) return setLoreSlug(h.target.slug);
+        // Street View gibi: noktaya dönüp yaklaş, sonra geç
+        viewRef.current.aim = { lon: yawToLon(h.yaw), lat: h.pitch };
+        viewRef.current.targetFov = MIN_FOV;
+        if (jumpTimer.current) clearTimeout(jumpTimer.current);
+        jumpTimer.current = setTimeout(() => gotoPanorama(h.target.slug), 420);
+    };
     const sess = ctrl.session;
     const isPlayer = ctrl.isPlayer;
     const [picking, setPicking] = useState(false);
@@ -224,9 +261,12 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
                     yaw={pano.initial_yaw}
                     pitch={pano.initial_pitch}
                     lockRef={lockRef}
+                    viewRef={viewRef}
                     onLoaded={() => setStatus('ready')}
                     onError={() => setStatus('error')}
                 />
+                {/* Savaşta noktalar gizlenir (token'larla karışmasın); ortak masada oyuncu mekân değiştiremez */}
+                {!battle.on && status === 'ready' && <HotspotMarkers hotspots={isPlayer ? hotspots.filter((h) => h.nav === 'info') : hotspots} onPick={pickHotspot} />}
                 {battle.on && (
                     <BattleScene
                         grid={battle.grid}
@@ -318,6 +358,7 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
                 </div>
             )}
             {guideOpen && <BattleGuide onClose={() => setGuideOpen(false)} />}
+            {loreSlug && <LoreEntryModal slug={loreSlug} onClose={() => setLoreSlug(null)} onPanorama={isPlayer ? undefined : gotoPanorama} />}
             {isPlayer && <JoinDialog sess={sess} battle={battle} picking={picking && !sess.needsName} onDone={() => setPicking(false)} />}
             {setupOpen && (
                 <GameSetup
