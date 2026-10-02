@@ -8,6 +8,7 @@ import Water from './Water';
 import Forest from './Forest';
 import Clouds from './Clouds';
 import Labels from './Labels';
+import Dragon from './Dragon';
 
 // memo: sayfa her zoom/rotasyon güncellemesinde yeniden render olur; harita katmanları olmamalı
 const MapLayers = React.memo(({ settings }: { settings: QualitySettings }) => (
@@ -22,6 +23,8 @@ const MapLayers = React.memo(({ settings }: { settings: QualitySettings }) => (
         {settings.treeFraction > 0 && <Forest fraction={settings.treeFraction} wind={settings.wind} />}
         <Labels />
         {settings.clouds && <Clouds />}
+        {/* Sürekli animasyon ister: yalnızca her kareyi çizen kademelerde */}
+        {settings.frameloop === 'always' && <Dragon />}
     </group>
 ));
 MapLayers.displayName = 'MapLayers';
