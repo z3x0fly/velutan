@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Compass, X } from 'lucide-react';
 import type { Region } from '../map/types';
@@ -13,10 +13,17 @@ const PanoramaViewer = dynamic(() => import('./PanoramaViewer'), { ssr: false })
 interface LorePanelProps {
   region: Region | null;
   onClose: () => void;
+  /** Açılınca doğrudan bu 360° mekâna gir (ortak masa daveti) */
+  initialPanoSlug?: string | null;
 }
 
-const LorePanel: React.FC<LorePanelProps> = ({ region, onClose }) => {
+const LorePanel: React.FC<LorePanelProps> = ({ region, onClose, initialPanoSlug }) => {
   const [panoIndex, setPanoIndex] = useState<number | null>(null);
+  useEffect(() => {
+    if (!initialPanoSlug || !region?.panoramas) return;
+    const i = region.panoramas.findIndex((p) => p.slug === initialPanoSlug);
+    if (i >= 0) setPanoIndex(i);
+  }, [initialPanoSlug, region?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [zoomed, setZoomed] = useState<{ src: string; alt: string } | null>(null);
   const blocks = useMemo(() => parseLore(region?.lore ?? ''), [region?.lore]);
   if (!region) return null;
@@ -157,6 +164,7 @@ const LorePanel: React.FC<LorePanelProps> = ({ region, onClose }) => {
           panoramas={panoramas}
           index={panoIndex}
           regionName={region.name}
+          regionSlug={region.slug}
           onIndexChange={setPanoIndex}
           onClose={() => setPanoIndex(null)}
         />,

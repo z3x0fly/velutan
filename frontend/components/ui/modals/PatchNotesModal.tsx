@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.5.4';
+    const PATCH_VERSION = '1.5.5';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,11 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'Ortak masa: oyuncular kendi ekranından', desc: "GM 'Oyuncuları davet et' der, bağlantıyı paylaşır. Oyuncular adını yazıp karakterini seçer; aynı mekânda aynı savaşı canlı görür, kendi karakterini yürütür, zarını atar. Atılan her zar herkesin ekranına ve günlüğe düşer." },
+                { title: 'Fizikli zarlar', desc: 'Zarları basılı tut, salla, savurarak fırlat: ekranda yuvarlanıp kenarlara çarpar, tıkırdar, üstte kalan yüz sayılır. Kısa dokunuş otomatik atar, telefonda sallayarak da atılır. d4, d6, d8, d10, d12, d20 ve d100.' },
+                { title: 'Velutan 5e ile oyna', desc: "360° mekânlarda tam savaş: inisiyatif sırası ve turlar, HP ve MANA, d20'yle Zırh Sınıfına karşı saldırı ve otomatik hasar, büyüler, durumlar, ölüm kurtarma zarları, hareket hakkı ve savaş günlüğü." },
+                { title: 'Sistemli ya da sistemsiz', desc: 'Oyunu kurarken seç: sistemsiz (ızgara, token, zar), Velutan 5e ya da mekanikleri tek tek açtığın kendi masan. Zarların elle mi, otomatik mi, hızlı mı atılacağı da senin.' },
+                { title: 'Akıl sağlığı ve karakter kütüphanesi', desc: "İstersen akıl sağlığı (Sanity): akıl zarı başarısız olunca akıl puanı düşer. Karakterini bir kez kaydet, her mekâna tek tıkla ekle." },
                 { title: '360° mekânlarda savaş ızgarası', desc: "Bir mekâna girip Savaş'a bas: zemine 1,5 m'lik kareli bir savaş alanı serilir. Oyuncu, düşman, NPC ve canavar token'ları koy, sürükle; kaç kare gittiği anında görünür. Izgarayı her mekânın zeminine göre ayarlayabilirsin." },
                 { title: '2D karakterlerin sahnede', desc: "Token'a arkası şeffaf bir karakter görseli yükle; karakterin ızgarada ayakta durur, tarafının rengindeki tabanla. Görsel yoksa baş harfli bir pul olur. Hepsi o mekâna özel saklanır." },
                 { title: 'Nasıl Çalışır? rehberi', desc: 'Savaş panelindeki rehber, ekran görüntüleriyle adım adım anlatıyor: mekâna gir, ızgarayı aç ve oturt, token hazırla, yerleştir, taşı ve mesafeyi say.' },

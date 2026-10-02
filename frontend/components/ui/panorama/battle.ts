@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { Rules, Sheet } from './rules';
 
 /**
  * 360° mekânlarda savaş ızgarası ve token'lar: veri modeli ve saklama.
@@ -25,6 +26,26 @@ export interface Token {
     cz: number;
     /** İsteğe bağlı 2D karakter görseli (arkası şeffaf; küçültülmüş data URL). Varsa token ayakta durur. */
     image?: string;
+    /** Sistemli oyunda karakter kartı (HP, MANA, ZS, yetenekler…) */
+    sheet?: Sheet;
+}
+
+/** İnisiyatif sırası ve tur durumu */
+export interface Combat {
+    round: number;
+    order: { id: string; init: number }[];
+    turn: number;
+    /** Sırası gelen token'ın tur başındaki karesi (hareket hakkı buradan sayılır) */
+    start: { id: string; cx: number; cz: number } | null;
+    moved: number;
+    dashed: boolean;
+}
+
+export type LogTone = 'info' | 'hit' | 'miss' | 'crit' | 'fumble' | 'heal' | 'death' | 'roll' | 'turn';
+export interface LogEntry {
+    id: number;
+    text: string;
+    tone: LogTone;
 }
 
 export interface GridSettings {
@@ -41,6 +62,10 @@ export interface BattleState {
     on: boolean;
     grid: GridSettings;
     tokens: Token[];
+    /** Kurulumda seçilen kurallar; yoksa oyun kurulmamış (kurulum ekranı açılır) */
+    rules?: Rules;
+    combat?: Combat | null;
+    log?: LogEntry[];
 }
 
 export const DEFAULT_GRID: GridSettings = { cell: 1.5, height: 1.6, rotation: 0, opacity: 0.55 };
@@ -53,7 +78,14 @@ function read(panoId: string | number): BattleState {
         const raw = localStorage.getItem(keyFor(panoId));
         if (raw) {
             const v = JSON.parse(raw);
-            return { on: !!v.on, grid: { ...DEFAULT_GRID, ...(v.grid ?? {}) }, tokens: Array.isArray(v.tokens) ? v.tokens : [] };
+            return {
+                on: !!v.on,
+                grid: { ...DEFAULT_GRID, ...(v.grid ?? {}) },
+                tokens: Array.isArray(v.tokens) ? v.tokens : [],
+                rules: v.rules,
+                combat: v.combat ?? null,
+                log: Array.isArray(v.log) ? v.log.slice(-60) : [],
+            };
         }
     } catch {
         /* özel sekme vb. */
@@ -147,3 +179,58 @@ export const initials = (name: string) =>
         .slice(0, 2)
         .map((w) => w[0]?.toLocaleUpperCase('tr') ?? '')
         .join('') || '?';
+
+// --- Karakter kütüphanesi: bir kez kaydedilen karakter her mekâna tek tıkla eklenir
+export interface SavedCharacter {
+    id: string;
+    name: string;
+    kind: TokenKind;
+    size: number;
+    image?: string;
+    sheet?: Sheet;
+}
+const LIB_KEY = 'velutan_karakterler';
+
+export function readLibrary(): SavedCharacter[] {
+    try {
+        const v = JSON.parse(localStorage.getItem(LIB_KEY) || '[]');
+        return Array.isArray(v) ? v : [];
+    } catch {
+        return [];
+    }
+}
+
+export function saveToLibrary(t: Token): SavedCharacter[] {
+    const lib = readLibrary().filter((c) => c.name.toLocaleLowerCase('tr') !== t.name.toLocaleLowerCase('tr'));
+    // Kayıtta kart "tam sağlıklı" saklanır
+    const sheet = t.sheet ? { ...t.sheet, hp: t.sheet.hpMax, mana: t.sheet.manaMax, conditions: [], death: undefined, state: undefined } : undefined;
+    const next = [{ id: t.id, name: t.name, kind: t.kind, size: t.size, image: t.image, sheet }, ...lib].slice(0, 40);
+    try {
+        localStorage.setItem(LIB_KEY, JSON.stringify(next));
+    } catch {
+        /* kota dolu */
+    }
+    window.dispatchEvent(new Event('velutan:kutuphane'));
+    return next;
+}
+
+export function removeFromLibrary(id: string): SavedCharacter[] {
+    const next = readLibrary().filter((c) => c.id !== id);
+    try {
+        localStorage.setItem(LIB_KEY, JSON.stringify(next));
+    } catch {
+        /* yoksay */
+    }
+    window.dispatchEvent(new Event('velutan:kutuphane'));
+    return next;
+}
+
+export const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+/** İki token arası mesafe (kare; 5e: çapraz da tek kare) */
+export const cellDistance = (a: Token, b: Token) => {
+    // Kapladıkları alanların en yakın kareleri arası
+    const dx = Math.max(0, Math.max(a.cx, b.cx) - Math.min(a.cx + a.size - 1, b.cx + b.size - 1));
+    const dz = Math.max(0, Math.max(a.cz, b.cz) - Math.min(a.cz + a.size - 1, b.cz + b.size - 1));
+    return Math.max(dx, dz);
+};

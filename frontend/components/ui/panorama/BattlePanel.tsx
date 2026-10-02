@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, HelpCircle, ImagePlus, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
-import { BattleState, DEFAULT_GRID, GridSettings, shrinkImage, Token, TOKEN_KINDS, TokenKind } from './battle';
+import { BattleState, DEFAULT_GRID, GridSettings, initials, readLibrary, removeFromLibrary, SavedCharacter, shrinkImage, Token, TOKEN_KINDS, TokenKind } from './battle';
 
 export interface PendingToken {
+    sheet?: import('./rules').Sheet;
     name: string;
     kind: TokenKind;
     size: number;
@@ -48,6 +49,14 @@ export default function BattlePanel({ state, selectedId, placing, onSelect, onSt
     const [showGrid, setShowGrid] = useState(false);
     const [confirmClear, setConfirmClear] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+    // Karakter kütüphanesi (kartta "Kütüphaneye kaydet" ile dolar)
+    const [library, setLibrary] = useState<SavedCharacter[]>([]);
+    useEffect(() => {
+        const load = () => setLibrary(readLibrary());
+        load();
+        window.addEventListener('velutan:kutuphane', load);
+        return () => window.removeEventListener('velutan:kutuphane', load);
+    }, []);
 
     const count = (k: TokenKind) => state.tokens.filter((t) => t.kind === k).length;
     const start = () => {
@@ -58,7 +67,7 @@ export default function BattlePanel({ state, selectedId, placing, onSelect, onSt
     };
 
     return (
-        <div className="w-[min(300px,calc(100vw-24px))] max-h-[calc(100dvh-170px)] overflow-y-auto custom-scrollbar rounded-2xl border-2 border-amber-600/30 bg-[#0d0905]/95 p-3 text-amber-50 shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+        <div className="vl-leather w-[min(300px,calc(100vw-24px))] max-h-[calc(100dvh-170px)] overflow-y-auto custom-scrollbar rounded-xl p-3 text-amber-50">
             <div className="mb-2 flex items-center justify-between">
                 <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.2em] text-amber-500">Savaş Izgarası</span>
                 <span className="flex items-center gap-1">
@@ -82,6 +91,31 @@ export default function BattlePanel({ state, selectedId, placing, onSelect, onSt
                     </button>
                 </div>
             ) : (
+                <>
+                {library.length > 0 && (
+                    <div className="mb-2">
+                        <div className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/70">Kütüphaneden ekle</div>
+                        <div className="flex flex-wrap gap-1">
+                            {library.map((c) => (
+                                <span key={c.id} className="group flex items-center gap-1 rounded-full border border-amber-600/25 bg-black/40 py-0.5 pl-0.5 pr-1.5 text-[11px] hover:border-amber-400">
+                                    <button
+                                        onClick={() => onStartPlacing({ name: c.name, kind: c.kind, size: c.size, image: c.image, sheet: c.sheet })}
+                                        className="flex items-center gap-1"
+                                        title={`${c.name} yerleştir`}
+                                    >
+                                        <span className="flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border text-[9px] font-black" style={{ borderColor: TOKEN_KINDS[c.kind].color }}>
+                                            {c.image ? <img src={c.image} alt="" className="h-full w-full object-cover object-top" /> : initials(c.name)}
+                                        </span>
+                                        {c.name}
+                                    </button>
+                                    <button onClick={() => setLibrary(removeFromLibrary(c.id))} aria-label={`${c.name} kütüphaneden sil`} className="hidden text-amber-100/40 hover:text-red-400 group-hover:inline">
+                                        <X size={10} />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 <div className="space-y-2 rounded-xl border border-amber-600/20 bg-black/30 p-2.5">
                     <div className="grid grid-cols-4 gap-1">
                         {(Object.keys(TOKEN_KINDS) as TokenKind[]).map((k) => (
@@ -168,6 +202,7 @@ export default function BattlePanel({ state, selectedId, placing, onSelect, onSt
                         <Plus size={14} /> Token yerleştir
                     </button>
                 </div>
+                </>
             )}
 
             {state.tokens.length > 0 && (

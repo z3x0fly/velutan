@@ -5,9 +5,10 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 /** "Nasıl Çalışır?": 360° mekânda savaş ızgarası ve token'ların adım adım anlatımı (ekran görüntüleriyle) */
-const STEPS: { title: string; body: React.ReactNode }[] = [
+const STEPS: { title: string; image: number; body: React.ReactNode }[] = [
     {
         title: 'Mekâna gir',
+        image: 1,
         body: (
             <>
                 Haritada bir bölgeye tıkla, açılan panelde <b>360° Gez</b>&apos;e bas. Mekânın tam ortasında durursun: sürükleyerek etrafına bakar,
@@ -16,7 +17,19 @@ const STEPS: { title: string; body: React.ReactNode }[] = [
         ),
     },
     {
+        title: 'Oyunu kur',
+        image: 2,
+        body: (
+            <>
+                <b>Savaş</b>&apos;a ilk bastığında masa kurulur. <b>Sistemsiz</b>: yalnızca ızgara, token ve zar. <b>Velutan 5e</b>: inisiyatif, HP ve MANA,
+                saldırı ve ZS, durumlar, ölüm zarları; hepsi açık. <b>Kendi masam</b>: mekanikleri tek tek seç. Zarların nasıl atılacağını da seç: elle salla,
+                otomatik ya da hızlı. Alttaki ayar düğmesiyle istediğin an değiştirirsin.
+            </>
+        ),
+    },
+    {
         title: 'Savaş ızgarasını aç',
+        image: 3,
         body: (
             <>
                 Sağ üstteki <b>Savaş</b> düğmesi mekânın zeminine kareli bir savaş alanı serer. Her kare <b>1,5 m (5 ft)</b>. Aynı düğmeyle ızgarayı
@@ -26,6 +39,7 @@ const STEPS: { title: string; body: React.ReactNode }[] = [
     },
     {
         title: 'Izgarayı mekâna oturt',
+        image: 4,
         body: (
             <>
                 Her panorama farklı yükseklikten çekildiği için ızgara bazen zeminde yüzer gibi görünür. <b>Izgarayı mekâna oturt</b>&apos;u aç:
@@ -36,6 +50,7 @@ const STEPS: { title: string; body: React.ReactNode }[] = [
     },
     {
         title: "Token'ını hazırla",
+        image: 5,
         body: (
             <>
                 Tarafı seç: <span className="text-blue-400">Oyuncu</span>, <span className="text-red-400">Düşman</span>, <span className="text-amber-400">NPC</span>{' '}
@@ -47,6 +62,7 @@ const STEPS: { title: string; body: React.ReactNode }[] = [
     },
     {
         title: 'Zemine yerleştir',
+        image: 6,
         body: (
             <>
                 <b>Token yerleştir</b>&apos;e bas, sonra zeminde istediğin kareye tıkla; token karenin ortasına oturur. Fikrini değiştirirsen{' '}
@@ -56,6 +72,7 @@ const STEPS: { title: string; body: React.ReactNode }[] = [
     },
     {
         title: 'Sürükle ve mesafeyi gör',
+        image: 7,
         body: (
             <>
                 Token&apos;ı tutup sürükle, bıraktığın kareye oturur. Sürüklerken üstte <b>kaç kare ve kaç metre</b> gittiği yazar; çapraz adım da tek
@@ -64,12 +81,56 @@ const STEPS: { title: string; body: React.ReactNode }[] = [
         ),
     },
     {
-        title: 'Savaşı yönet',
+        title: 'Zarı salla ve fırlat',
+        image: 8,
         body: (
             <>
-                Listede bir ada tıklayınca token seçilir ve zeminde sarı halkayla parlar. Çöp kutusu ya da <b>Delete</b> tuşu onu kaldırır. Her şey bu
-                tarayıcıda, o mekâna özel saklanır; sayfayı kapatsan da yerinde kalır. Oyunculara göstermek için ekranını yayında paylaş: ızgara ve
-                token&apos;lar başkalarının tarayıcısına gitmez.
+                <b>Savaşı başlat</b> deyince herkesin inisiyatif zarı kupaya gelir. Zarları <b>basılı tut, salla</b> (tıkırdar) ve <b>savurarak bırak</b>:
+                ne kadar hızlı savurursan o kadar sert atılır, zarlar kenarlara çarpıp yuvarlanır, üstte kalan yüz sayılır. Kısa dokunuş kendiliğinden atar;
+                telefonda telefon düğmesini açıp telefonu sallayarak da atabilirsin. Saldırı, hasar, kurtarma… her zar böyle atılır.
+            </>
+        ),
+    },
+    {
+        title: 'Sıra ve turlar',
+        image: 9,
+        body: (
+            <>
+                Üstteki şerit inisiyatif sırasıdır: portreler, HP ve MANA çubukları, durumlar. Sırası gelen zeminde altın halkayla parlar; hızı kadar kare
+                yürür (sürüklerken sayılır, <b>Atıl</b> iki katına çıkarır). İşi bitince <b>Sıradaki</b>; sıra başa dönünce yeni tur başlar.
+            </>
+        ),
+    },
+    {
+        title: 'Saldır ve büyü yap',
+        image: 10,
+        body: (
+            <>
+                Kartta <b>Saldır</b>&apos;a bas, hedefe tıkla. Mesafe, hedefin ZS&apos;si ve isabet şansı görünür; durumlar (kör, zehirli, yerde…) avantaj ya da
+                dezavantaj önerir. d20 isabet ederse hasar zarı atılır ve can kendiliğinden düşer; doğal 20 kritiktir. <b>Büyü</b> MANA harcar: hasar ya
+                da iyileştirme, istersen hedefe kurtarma zarı attırıp başarıda yarım hasar.
+            </>
+        ),
+    },
+    {
+        title: 'Oyuncuları masaya çağır',
+        image: 12,
+        body: (
+            <>
+                Üstteki <b>Oyuncuları davet et</b> bir masa açar: kodu ve bağlantıyı oyunculara gönder. Bağlantıyı açan oyuncu adını yazar, karakterini
+                seçer ve aynı mekânda aynı savaşı canlı görür. Kendi karakterini yürütür, zarını atar; attığı her zar senin günlüğüne ve herkesin ekranına
+                düşer. Kuralları, düşmanları ve hamleleri sen yönetirsin. Bitince <b>Masayı kapat</b>.
+            </>
+        ),
+    },
+    {
+        title: 'Savaşı yönet',
+        image: 11,
+        body: (
+            <>
+                Listede ya da şeritte bir ada tıklayınca kartı açılır: HP/MANA, yetenek ve kurtarma zarları, durumlar. 0 HP&apos;ye düşen oyuncu bayılır,
+                sırası geldikçe ölüm zarı atar. <b>Kütüphaneye kaydet</b> dersen o karakter her mekâna tek tıkla gelir. Masa bu tarayıcıda, o mekâna özel saklanır;
+                oyuncular ortak masadan canlı izler.
             </>
         ),
     },
@@ -118,7 +179,7 @@ export default function BattleGuide({ onClose }: { onClose: () => void }) {
                         {STEPS.map((s, n) => (
                             <img
                                 key={n}
-                                src={`/rehber/savas-${n + 1}.webp`}
+                                src={`/rehber/savas-${s.image}.webp`}
                                 alt={`${n + 1}. adım: ${s.title}`}
                                 className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${n === i ? 'opacity-100' : 'opacity-0'}`}
                             />

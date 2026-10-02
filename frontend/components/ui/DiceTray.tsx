@@ -48,7 +48,7 @@ function rand(sides: number) {
 
 const signed = (v: number) => (v > 0 ? `+${v}` : String(v));
 
-function DieShape({ die, value, size = 72, rolling, tone }: { die: Die; value?: number | string; size?: number; rolling?: boolean; tone?: 'crit' | 'fumble' | 'dropped' | 'muted' }) {
+export function DieShape({ die, value, size = 72, rolling, tone }: { die: Die; value?: number | string; size?: number; rolling?: boolean; tone?: 'crit' | 'fumble' | 'dropped' | 'muted' }) {
     const stroke = tone === 'crit' ? '#facc15' : tone === 'fumble' ? '#f87171' : '#d6b36a';
     return (
         <div className={`relative shrink-0 ${rolling ? 'dice-rolling' : value !== undefined ? 'dice-land' : ''} ${tone === 'dropped' ? 'opacity-30' : ''}`} style={{ width: size, height: size }}>

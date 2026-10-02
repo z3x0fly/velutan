@@ -24,6 +24,7 @@ import { formatDuration } from './map/travelAnalysis';
 import RouteBreakdown from './ui/RouteBreakdown';
 import SharedPinsPrompt from './ui/SharedPinsPrompt';
 import { pinStore } from './map/pinStore';
+import { sessionStore } from './ui/panorama/session';
 
 
 
@@ -87,6 +88,30 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
       setTimeout(() => setSelectedRegion(region), 1300);
     }, 2800);
     return () => clearTimeout(t);
+  }, [regions]);
+
+  // Ortak masa daveti: /?masa=KOD -> masanın bölgesi ve mekânı açılır, oyuncu adını yazıp katılır
+  const masaDone = useRef(false);
+  const [joinPano, setJoinPano] = useState<string | null>(null);
+  const [masaError, setMasaError] = useState<string | null>(null);
+  useEffect(() => {
+    if (masaDone.current || regions.length === 0) return;
+    const code = new URLSearchParams(window.location.search).get('masa');
+    if (!code) return;
+    masaDone.current = true;
+    fetch(`${API_URL}/masa/${encodeURIComponent(code.slice(0, 12))}`)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('yok'))))
+      .then((d: { id: string; pano: { region: string; slug: string } }) => {
+        const region = regions.find(r => r.slug === d.pano.region);
+        if (!region) throw new Error('bölge yok');
+        sessionStore.prepareJoin(d.id, d.pano);
+        setJoinPano(d.pano.slug);
+        setSelectedRegion(region);
+      })
+      .catch(() => {
+        setMasaError('Bu masa kapanmış ya da bağlantı hatalı.');
+        setTimeout(() => setMasaError(null), 6000);
+      });
   }, [regions]);
 
   // Defter/sınır listesinden "oraya uç" istekleri
@@ -222,7 +247,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
              <div className="bg-black/90 border-2 border-amber-600/40 p-3 md:p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] md:min-w-[280px]">
                 <div className="flex justify-between items-center mb-4 border-b border-amber-600/20 pb-2">
                     <h3 className="text-amber-500 font-serif italic font-bold tracking-widest text-sm">YOLCULUK ÖZETİ</h3>
-                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.4</span>
+                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.5</span>
                 </div>
                 
                 <div className="space-y-4">
@@ -363,13 +388,23 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
         {/* BOTTOM: Navigator Icon REMOVED */}
       </div>
 
+      {masaError && (
+        <div className="fixed left-1/2 top-24 z-[10050] -translate-x-1/2 rounded-full border border-red-400/50 bg-black/90 px-4 py-2 text-sm text-red-200 shadow-lg">
+          {masaError}
+        </div>
+      )}
+
       {/* 4. MODALS (Lore Panel & Easter Egg) */}
       {selectedRegion && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 pointer-events-auto p-3 md:p-20" onClick={() => setSelectedRegion(null)}>
           <div className="contents" onClick={(e) => e.stopPropagation()}>
           <LorePanel
             region={selectedRegion}
-            onClose={() => setSelectedRegion(null)}
+            initialPanoSlug={joinPano}
+            onClose={() => {
+              setSelectedRegion(null);
+              setJoinPano(null);
+            }}
           />
           </div>
         </div>

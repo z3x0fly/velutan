@@ -10,6 +10,7 @@ import regionsRouter from './routes/regions';
 import authRouter from './routes/auth';
 import panoramasRouter from './routes/panoramas';
 import territoriesRouter from './routes/territories';
+import masaRouter from './routes/masa';
 
 fs.mkdirSync(path.join(config.staticDir, 'images'), { recursive: true });
 ensureAdmin();
@@ -32,6 +33,8 @@ app.use(
         maxAge: 600,
     }),
 );
+// Ortak masa kendi gövde sınırını (3 MB: token görselleri) kullanır; genel sınırdan önce bağlanır
+app.use('/masa', masaRouter);
 app.use(express.json({ limit: '1mb' }));
 
 // Medya (görsel, 360°) yalnızca izinli alan adlarından WebGL dokusu olarak yüklenebilir
