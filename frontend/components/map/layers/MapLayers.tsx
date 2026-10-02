@@ -20,7 +20,7 @@ const MapLayers = React.memo(({ settings }: { settings: QualitySettings }) => (
         </mesh>
         <Terrain textureSize={settings.textureSize} segments={settings.terrainSegments} normalMap={settings.tier === 'high' || settings.tier === 'medium'} />
         <Water animate={settings.waterAnimation} />
-        {settings.treeFraction > 0 && <Forest fraction={settings.treeFraction} wind={settings.wind} />}
+        {settings.treeFraction > 0 && <Forest segments={settings.terrainSegments} fraction={settings.treeFraction} wind={settings.wind} />}
         <Labels />
         {settings.clouds && <Clouds />}
         {/* Sürekli animasyon ister: yalnızca her kareyi çizen kademelerde */}

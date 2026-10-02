@@ -5,8 +5,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { TREE_STRIDE } from '../generated/mapMeta';
-import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE } from '../terrain/heightField';
-import { to3D } from '../utils/coords';
+import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HeightField, loadHeightField } from '../terrain/heightField';
+import { to3D, WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
 import { mapAsset } from '../media';
 
 // tools/build_map_assets.py ile aynı sıra
@@ -102,6 +102,47 @@ function buildBush() {
     )!;
 }
 
+/**
+ * Zemin örgüsünün (Terrain) bir noktadaki gerçek yüksekliği. Örgü, köşelerde yükselti dokusunu GPU gibi
+ * örnekler ve aradaki üçgenleri düz geçer; tepelerde bu yüzey dokunun kendisinden alçakta kalır.
+ * Ağaçlar dokuya göre konursa havada asılı kalır, bu yüzden aynı üçgen yüzeyi burada hesaplanır.
+ */
+function makeGroundSampler(field: HeightField, [gx, gy]: [number, number]) {
+    const { width: w, height: h, data } = field;
+    // GPU doğrusal süzme: doku koordinatı * boyut - 0.5 (texel merkezleri)
+    const texel = (u: number, v: number) => {
+        const tx = Math.min(Math.max(u * w - 0.5, 0), w - 1);
+        const ty = Math.min(Math.max(v * h - 0.5, 0), h - 1);
+        const x0 = Math.floor(tx), y0 = Math.floor(ty);
+        const x1 = Math.min(x0 + 1, w - 1), y1 = Math.min(y0 + 1, h - 1);
+        const fx = tx - x0, fy = ty - y0;
+        const a = data[y0 * w + x0] * (1 - fx) + data[y0 * w + x1] * fx;
+        const b = data[y1 * w + x0] * (1 - fx) + data[y1 * w + x1] * fx;
+        return (a * (1 - fy) + b * fy) * DISPLACEMENT_SCALE + DISPLACEMENT_BIAS;
+    };
+    const vertex = (ix: number, iy: number) => texel(ix / gx, iy / gy);
+    return (x: number, z: number) => {
+        const cx = Math.min(Math.max((x / WORLD_WIDTH + 0.5) * gx, 0), gx - 1e-6);
+        const cy = Math.min(Math.max((z / WORLD_HEIGHT + 0.5) * gy, 0), gy - 1e-6);
+        const ix = Math.floor(cx), iy = Math.floor(cy);
+        const fx = cx - ix, fy = cy - iy;
+        // PlaneGeometry hücre köşegeni (ix, iy+1) – (ix+1, iy) arasındadır
+        const hb = vertex(ix, iy + 1);
+        const hd = vertex(ix + 1, iy);
+        if (fx + fy <= 1) {
+            const ha = vertex(ix, iy);
+            return ha + (hd - ha) * fx + (hb - ha) * fy;
+        }
+        const hc = vertex(ix + 1, iy + 1);
+        return hc + (hb - hc) * (1 - fx) + (hd - hc) * (1 - fy);
+    };
+}
+
+/** Gövde tabanının en alçak noktası: yamaçta ağacın hiçbir kenarı havada kalmasın */
+function footHeight(ground: (x: number, z: number) => number, x: number, z: number, r: number) {
+    return Math.min(ground(x, z), ground(x + r, z), ground(x - r, z), ground(x, z + r), ground(x, z - r));
+}
+
 interface TreeRecord {
     /** Çizim grubu: tür * 2 + varyant; 8 = çalı */
     group: number;
@@ -110,8 +151,9 @@ interface TreeRecord {
 }
 
 /** fraction: çizilecek ağaç oranı; elenenler hiç işlenmez. Ana iş parçacığı her 2000 kayıtta serbest bırakılır. */
-async function loadTrees(fraction: number, bushes: boolean): Promise<TreeRecord[]> {
-    const res = await fetch(TREE_URL);
+async function loadTrees(fraction: number, bushes: boolean, segments: [number, number]): Promise<TreeRecord[]> {
+    const [res, field] = await Promise.all([fetch(TREE_URL), loadHeightField().catch(() => null)]);
+    const ground = field ? makeGroundSampler(field, segments) : null;
     if (!res.ok) throw new Error(`Ağaç verisi yüklenemedi (${res.status})`);
     const view = new DataView(await res.arrayBuffer());
     const out: TreeRecord[] = [];
@@ -127,9 +169,10 @@ async function loadTrees(fraction: number, bushes: boolean): Promise<TreeRecord[
         const h = view.getUint8(o + 6) / 255;
         const seed = view.getUint8(o + 10) / 255;
         const [x, , z] = to3D(px, py);
-        obj.position.set(x, h * DISPLACEMENT_SCALE + DISPLACEMENT_BIAS - 0.01, z);
-        obj.rotation.set((seed - 0.5) * 0.12, seed * Math.PI * 2, 0);
         const s = BASE_SCALE * (0.7 + scale * 0.55);
+        const y = ground ? footHeight(ground, x, z, s * 0.08) : h * DISPLACEMENT_SCALE + DISPLACEMENT_BIAS;
+        obj.position.set(x, y - 0.006, z);
+        obj.rotation.set((seed - 0.5) * 0.12, seed * Math.PI * 2, 0);
         obj.scale.set(s, s * (0.9 + seed * 0.25), s);
         obj.updateMatrix();
 
@@ -146,7 +189,7 @@ async function loadTrees(fraction: number, bushes: boolean): Promise<TreeRecord[
             const a = seed * Math.PI * 2;
             obj.position.x += Math.cos(a) * s * 0.9;
             obj.position.z += Math.sin(a) * s * 0.9;
-            obj.position.y -= 0.004;
+            obj.position.y = (ground ? footHeight(ground, obj.position.x, obj.position.z, s * 0.15) : obj.position.y) - 0.016;
             obj.rotation.set(0, a, 0);
             obj.scale.setScalar(s * (0.75 + scale * 0.4));
             obj.updateMatrix();
@@ -189,13 +232,15 @@ function makeTreeMaterial(uniforms: { uTime: { value: number }; uGrow: { value: 
 const keepTree = (i: number, fraction: number) => fraction >= 1 || ((Math.imul(i + 1, 2654435761) >>> 0) / 4294967296) < fraction;
 
 interface ForestProps {
+    /** Zemin örgüsünün bölüt sayısı (Terrain ile aynı): ağaçlar bu yüzeye oturtulur */
+    segments: [number, number];
     /** Çizilecek ağaç oranı (zayıf cihazlarda < 1) */
     fraction?: number;
     /** Rüzgâr salınımı ve açılış büyüme animasyonu (sürekli kare gerektirir) */
     wind?: boolean;
 }
 
-const Forest = ({ fraction = 1, wind = true }: ForestProps) => {
+const Forest = ({ segments, fraction = 1, wind = true }: ForestProps) => {
     const [trees, setTrees] = useState<TreeRecord[] | null>(null);
     const { invalidate } = useThree();
     // Rüzgâr yoksa (yalnızca değişince çizilen kademe) ağaçlar doğrudan tam boy başlar
@@ -204,13 +249,13 @@ const Forest = ({ fraction = 1, wind = true }: ForestProps) => {
 
     useEffect(() => {
         let alive = true;
-        loadTrees(fraction, fraction >= 0.6)
+        loadTrees(fraction, fraction >= 0.6, segments)
             .then((t) => alive && setTrees(t))
             .catch((err) => console.error('[Velutan] Orman yüklenemedi:', err));
         return () => {
             alive = false;
         };
-    }, [fraction]);
+    }, [fraction, segments[0], segments[1]]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const geometries = useMemo(
         () => ({

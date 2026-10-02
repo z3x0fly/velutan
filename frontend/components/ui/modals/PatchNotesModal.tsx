@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.5.1';
+    const PATCH_VERSION = '1.5.2';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -45,6 +45,7 @@ const PatchNotesModal = () => {
             title: 'Düzeltilenler',
             icon: Wrench,
             items: [
+                { title: 'Havada kalan ağaçlar', desc: 'Tepelerde ve yamaçlarda bazı ağaçlar zeminin biraz üstünde asılı duruyordu; artık hepsi çizilen zemine tam oturuyor, düşük kalitede de.' },
                 { title: 'Telefon uyumu', desc: 'Telefonda arayüz üst üste biniyordu. Logo, pusula, lejant ve alt düğmeler küçük ekrana göre yeniden yerleşti; lejant kapalı başlıyor, işaretler ve bilgi düğmeleri sadeleşti.' },
                 { title: 'Tıklanan yere durak', desc: 'Seyahat durağı ve yer işareti, yakınlaşınca ya da harita eğikken kayıyordu; artık tam tıkladığın noktaya konuyor. Bölge ismine denk gelen tıklar kaybolmuyor.' },
                 { title: 'Seyahat çizgisi', desc: 'Rota dağların içine gömülmüyor; süre artık tek bir arazi seçimine göre değil, yol boyunca gerçek zemine göre.' },
