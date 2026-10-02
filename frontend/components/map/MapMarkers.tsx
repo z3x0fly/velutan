@@ -61,14 +61,14 @@ const MarkerItem = React.memo(function MarkerItem({
                         style={{ ['--mc' as string]: style.color }}
                     >
                         <span
-                            className={`flex items-center justify-center rounded-full border-2 shadow-[0_4px_14px_rgba(0,0,0,0.7)] transition-transform duration-200 group-hover:scale-125 ${major ? 'w-10 h-10' : 'w-8 h-8'}`}
+                            className={`flex items-center justify-center rounded-full border-2 shadow-[0_4px_14px_rgba(0,0,0,0.7)] transition-transform duration-200 group-hover:scale-125 ${major ? 'w-8 h-8 md:w-10 md:h-10' : 'w-6 h-6 md:w-8 md:h-8'}`}
                             style={{ background: 'radial-gradient(circle at 35% 30%, #2a2116, #0d0905)', borderColor: style.color }}
                         >
-                            <Icon size={major ? 20 : 16} color={style.color} strokeWidth={2.2} />
+                            <Icon color={style.color} strokeWidth={2.2} className={major ? 'w-4 h-4 md:w-5 md:h-5' : 'w-3 h-3 md:w-4 md:h-4'} />
                         </span>
                         <span
                             data-marker-name
-                            className={`whitespace-nowrap rounded-full border border-[rgba(168,147,97,0.6)] px-3 py-0.5 transition-[opacity,border-color] group-hover:!opacity-100 group-hover:[border-color:var(--mc)] font-serif font-bold uppercase tracking-wider text-amber-50 shadow-lg ${major ? 'text-[14px]' : 'text-[12px]'}`}
+                            className={`whitespace-nowrap rounded-full border border-[rgba(168,147,97,0.6)] px-2 md:px-3 py-0.5 transition-[opacity,border-color] group-hover:!opacity-100 group-hover:[border-color:var(--mc)] font-serif font-bold uppercase tracking-wider text-amber-50 shadow-lg ${major ? 'text-[11px] md:text-[14px]' : 'text-[10px] md:text-[12px]'}`}
                             style={{ background: 'rgba(10,7,4,0.85)' }}
                         >
                             {placed.region.name}

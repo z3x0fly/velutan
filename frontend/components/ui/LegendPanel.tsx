@@ -42,6 +42,10 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
     showBrush = false
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // Telefonda harita görünsün diye kapalı başlar
+  useEffect(() => {
+    if (window.matchMedia?.('(max-width: 767px)').matches) setIsCollapsed(true);
+  }, []);
   const [activeTab, setActiveTab] = useState<'legend' | 'travel' | 'pins' | 'draw'>('legend');
   const { pins, placing } = usePins();
 
@@ -89,7 +93,7 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
   ];
 
   return (
-    <div className={`relative transition-all duration-500 ease-in-out ${isCollapsed ? 'w-16 h-16 overflow-hidden' : 'w-80 p-0 max-h-[calc(100vh-330px)] min-h-[220px] overflow-y-auto overflow-x-hidden custom-scrollbar'} glass-panel rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-amber-600/20`}>
+    <div className={`relative transition-all duration-500 ease-in-out ${isCollapsed ? 'w-12 h-12 md:w-16 md:h-16 overflow-hidden' : 'w-[calc(100vw-24px)] md:w-80 p-0 max-h-[calc(100dvh-170px)] md:max-h-[calc(100vh-330px)] min-h-[220px] overflow-y-auto overflow-x-hidden custom-scrollbar'} glass-panel rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-amber-600/20`}>
       <div className="hud-corner hud-corner-tl opacity-60" />
       <div className="hud-corner hud-corner-tr opacity-40" />
 

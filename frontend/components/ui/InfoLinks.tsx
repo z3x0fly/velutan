@@ -33,9 +33,10 @@ export default function InfoLinks() {
                         <button
                             key={page.id}
                             onClick={() => setOpen(page)}
-                            className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-black/70 px-3 py-1.5 text-[12px] font-black uppercase tracking-[0.15em] text-amber-500/80 transition-colors hover:border-amber-500 hover:text-amber-400"
+                            aria-label={page.title}
+                            className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-black/70 p-2 md:px-3 md:py-1.5 text-[12px] font-black uppercase tracking-[0.15em] text-amber-500/80 transition-colors hover:border-amber-500 hover:text-amber-400"
                         >
-                            <Icon size={12} /> {page.title}
+                            <Icon size={12} /> <span className="hidden md:inline">{page.title}</span>
                         </button>
                     );
                 })}
@@ -67,7 +68,7 @@ export default function InfoLinks() {
                                 <X size={22} />
                             </button>
                             <div className="mb-1 text-[12px] font-black uppercase tracking-[0.35em] text-amber-500/60">{open.kicker}</div>
-                            <h2 className="mb-6 border-b border-amber-600/20 pb-4 font-serif text-3xl font-black text-amber-400">{open.title}</h2>
+                            <h2 className="mb-6 border-b border-amber-600/20 pb-4 pr-8 font-serif text-2xl md:text-3xl font-black text-amber-400">{open.title}</h2>
 
                             <div className="space-y-8">
                                 {open.sections.map((s, i) => (

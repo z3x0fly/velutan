@@ -210,7 +210,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
           }}
         />
         {/* Frame Border */}
-        <div className="absolute inset-8 border border-[#4a3b22]/30 rounded-xl pointer-events-none" />
+        <div className="absolute inset-2 md:inset-8 border border-[#4a3b22]/30 rounded-xl pointer-events-none" />
       </div>
 
       {/* 3. UI LAYER: En üstte butonlar ve paneller */}
@@ -219,11 +219,11 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
 
         {/* TOP RIGHT: Yolculuk Özeti Panel (Moved below Compass) */}
         {isTravelMode && travelPath.length > 0 && (
-          <div className="absolute top-[289px] right-10 pointer-events-auto animate-in fade-in slide-in-from-right duration-500">
-             <div className="bg-black/90 border-2 border-amber-600/40 p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] min-w-[280px]">
+          <div className="absolute left-3 right-3 bottom-[124px] md:left-auto md:bottom-auto md:top-[289px] md:right-10 pointer-events-auto animate-in fade-in slide-in-from-right duration-500">
+             <div className="bg-black/90 border-2 border-amber-600/40 p-3 md:p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] md:min-w-[280px]">
                 <div className="flex justify-between items-center mb-4 border-b border-amber-600/20 pb-2">
                     <h3 className="text-amber-500 font-serif italic font-bold tracking-widest text-sm">YOLCULUK ÖZETİ</h3>
-                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.0</span>
+                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.1</span>
                 </div>
                 
                 <div className="space-y-4">
@@ -313,7 +313,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
 
 
         {/* Sol Üst: Legend + Seyahat Kontrolleri */}
-        <div className="absolute top-10 left-10 pointer-events-auto">
+        <div className="absolute top-3 left-3 md:top-10 md:left-10 pointer-events-auto z-[10002]">
           <LegendPanel 
             selectedType={selectedType} 
             onTypeSelect={setSelectedType} 
@@ -343,7 +343,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
         <LogoBadge />
 
         {/* COMPASS: z-index artırıldı ve konumu sabitlendi */}
-        <div className="absolute top-10 right-10 pointer-events-auto scale-75 z-[10001]">
+        <div className="absolute top-1 right-1 md:top-10 md:right-10 pointer-events-auto scale-[0.45] md:scale-75 origin-top-right z-[10001]">
           <VintageCompass onReset={handleCompassReset} />
           
           {/* Spam Feedback floating text */}
@@ -355,9 +355,9 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
         </div>
 
         {/* BOTTOM LEFT: Map Scale Bar & Dice Roller */}
-        <div className="absolute bottom-6 left-10 pointer-events-auto flex flex-col items-start gap-5">
+        <div className="absolute bottom-3 left-3 md:bottom-6 md:left-10 pointer-events-auto flex flex-col items-start gap-2 md:gap-5">
            <DiceTray />
-           <MapScaleBar />
+           <div className="hidden md:block"><MapScaleBar /></div>
            <InfoLinks />
         </div>
 
@@ -420,11 +420,11 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
       )}
 
       {/* 5. SPOTIFY AMBIYANS PANEL */}
-      <div className="fixed bottom-10 right-10 z-[10000] pointer-events-auto">
+      <div className="fixed bottom-3 right-3 md:bottom-10 md:right-10 z-[10000] pointer-events-auto">
         <div className="group relative flex flex-col items-end gap-3">
             {/* Widget Container - Larger and with Header */}
             <div className={`overflow-hidden transition-all duration-700 rounded-2xl shadow-[0_0_80px_rgba(0,0,0,0.8)] border-2 border-amber-600/30 bg-[#0a0a0a] 
-                ${isAmbienceMounted ? 'h-[520px] w-[380px] opacity-100 mb-2' : 'h-0 w-0 opacity-0'}`}>
+                ${isAmbienceMounted ? 'h-[520px] max-h-[70vh] w-[380px] max-w-[calc(100vw-24px)] opacity-100 mb-2' : 'h-0 w-0 opacity-0'}`}>
                
                <div className="p-4 border-b border-amber-600/10 flex justify-between items-center bg-black/40">
                   <span className="text-[12px] font-black uppercase tracking-[0.3em] text-amber-500 italic">Playlist: Velutan Haritası</span>
@@ -454,12 +454,12 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
                 {/* Toggle Button */}
                 <button 
                     onClick={() => setIsAmbienceMounted(!isAmbienceMounted)}
-                    className={`flex items-center gap-4 px-8 py-4 rounded-full border-2 transition-all duration-500 shadow-2xl group active:scale-95
+                    className={`flex items-center gap-4 p-2 md:px-8 md:py-4 rounded-full border-2 transition-all duration-500 shadow-2xl group active:scale-95
                         ${isAmbienceMounted 
                             ? 'bg-red-950/40 border-red-500/50 text-red-400 hover:bg-red-900/60' 
                             : 'bg-black/90 border-amber-500/50 text-amber-500 hover:border-amber-400 hover:scale-105'}`}
                 >
-                    <div className="flex flex-col items-end">
+                    <div className="hidden md:flex flex-col items-end">
                         <span className="text-[13px] font-black uppercase tracking-[0.2em]">{isAmbienceMounted ? 'AMBİYANSI SUSTUR' : 'AMBİYANSI AÇ'}</span>
                         <span className="text-[12px] opacity-40 font-serif italic text-right">{isAmbienceMounted ? 'Sessizliğe Dön' : 'Velutan Ezgileri'}</span>
                     </div>
