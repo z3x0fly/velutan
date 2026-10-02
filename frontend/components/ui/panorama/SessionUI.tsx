@@ -127,7 +127,9 @@ export function PlayerSession({ sess, battle, onPick }: { sess: SessionState; ba
 /** Oyuncu katılımı: önce ad, sonra karakter */
 export function JoinDialog({ sess, battle, picking, onDone }: { sess: SessionState; battle: BattleState; picking: boolean; onDone: () => void }) {
     const [name, setName] = useState(sess.name);
-    useEffect(() => setName(sess.name), [sess.name]);
+    useEffect(() => {
+        setName(sess.name);
+    }, [sess.name]);
     const taken = new Set(sess.seats.filter((s) => s.id !== sess.clientId && s.character).map((s) => s.character));
     const heroes = battle.tokens.filter((t) => t.kind === 'oyuncu');
     if (!sess.needsName && !picking) return null;

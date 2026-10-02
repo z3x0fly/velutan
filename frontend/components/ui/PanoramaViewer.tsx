@@ -132,7 +132,9 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
     const url = useMemo(() => mediaUrl(pano?.image), [pano]);
 
-    useEffect(() => setStatus('loading'), [url]);
+    useEffect(() => {
+        setStatus('loading');
+    }, [url]);
 
     // Savaş: ızgara, token'lar, kurallar ve hamleler (bu mekâna özel, tarayıcıda saklanır)
     const ctrl = useBattleController(pano?.slug ?? '', regionSlug);
@@ -176,7 +178,9 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
     useEffect(() => {
         if (sess.status === 'closed') setPicking(false);
     }, [sess.status]);
-    useEffect(() => setConfirm(null), [pano?.slug]);
+    useEffect(() => {
+        setConfirm(null);
+    }, [pano?.slug]);
 
     const onTarget = (id: string) => {
         if (!targeting) return;

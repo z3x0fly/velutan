@@ -25,6 +25,7 @@ export interface SessionAction {
     values?: number[];
     total?: number;
     tone?: string;
+    dice?: { s: number; v: number }[];
 }
 
 export interface SessionState {

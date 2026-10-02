@@ -193,7 +193,15 @@ router.post('/:id/eylem', (req: Request, res: Response) => {
         payload = { tokenId: b.tokenId, cx: b.cx, cz: b.cz };
     } else if (type === 'zar') {
         const values = Array.isArray(b.values) ? b.values.slice(0, 20).filter((v: unknown) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 100) : [];
-        payload = { label: String(b.label ?? '').slice(0, 80), expr: String(b.expr ?? '').slice(0, 20), values, total: Number.isFinite(b.total) ? Math.round(b.total) : 0, tone: String(b.tone ?? 'roll').slice(0, 10) };
+        // Atılan zarlar (günlükte şekilleriyle görünür): yalnızca geçerli zar türleri ve değerleri
+        const SIDES = [4, 6, 8, 10, 12, 20, 100];
+        const dice = Array.isArray(b.dice)
+            ? b.dice
+                  .slice(0, 20)
+                  .filter((d: { s?: unknown; v?: unknown }) => d && SIDES.includes(d.s as number) && Number.isInteger(d.v) && (d.v as number) >= 0 && (d.v as number) <= (d.s as number))
+                  .map((d: { s: number; v: number }) => ({ s: d.s, v: d.v }))
+            : [];
+        payload = { label: String(b.label ?? '').slice(0, 160), expr: String(b.expr ?? '').slice(0, 20), values, dice, total: Number.isFinite(b.total) ? Math.round(b.total) : 0, tone: String(b.tone ?? 'roll').slice(0, 10) };
     } else {
         if (b.tokenId !== null && !idOk(b.tokenId)) return res.status(400).json({ error: 'Geçersiz karakter' });
         client.character = b.tokenId;

@@ -50,8 +50,12 @@ export default function DiceDock({ ctrl, onRules }: { ctrl: BattleController; on
     const logEnd = useRef<HTMLDivElement>(null);
     const log = ctrl.battle.log ?? [];
     const ModeIcon = MODE_ICON[dice.mode];
-    useEffect(() => setTouch(window.matchMedia?.('(pointer: coarse)').matches ?? false), []);
-    useEffect(() => logEnd.current?.scrollIntoView({ block: 'end' }), [log.length, logOpen]);
+    useEffect(() => {
+        setTouch(window.matchMedia?.('(pointer: coarse)').matches ?? false);
+    }, []);
+    useEffect(() => {
+        logEnd.current?.scrollIntoView({ block: 'end' });
+    }, [log.length, logOpen]);
 
     const expr = `${count > 1 ? count : ''}d${die}${bonus ? signed(bonus) : ''}`;
     const d20 = die === 20 && count === 1;
@@ -87,11 +91,25 @@ export default function DiceDock({ ctrl, onRules }: { ctrl: BattleController; on
                             <X size={14} />
                         </button>
                     </div>
-                    <div className="max-h-48 space-y-0.5 overflow-y-auto pr-1 text-[12px] leading-snug custom-scrollbar">
+                    <div className="max-h-[38dvh] space-y-1 overflow-y-auto pr-1 text-[12px] leading-snug custom-scrollbar">
                         {log.length === 0 && <div className="py-2 text-center italic text-amber-100/40">Henüz bir şey olmadı.</div>}
                         {log.map((e) => (
                             <div key={e.id} className={`${TONE[e.tone]} ${e.tone === 'turn' ? 'pt-1 font-bold' : ''}`}>
                                 {e.text}
+                                {/* O satırda atılan zarlar: doğal 20 altın, doğal 1 kırmızı */}
+                                {e.dice && e.dice.length > 0 && (
+                                    <span className="mt-0.5 flex flex-wrap gap-0.5">
+                                        {e.dice.map((d, i) => (
+                                            <DieShape
+                                                key={i}
+                                                die={d.s as 4 | 6 | 8 | 10 | 12 | 20 | 100}
+                                                value={d.v}
+                                                size={28}
+                                                tone={d.s === 20 && d.v === 20 ? 'crit' : d.s === 20 && d.v === 1 ? 'fumble' : undefined}
+                                            />
+                                        ))}
+                                    </span>
+                                )}
                             </div>
                         ))}
                         <div ref={logEnd} />

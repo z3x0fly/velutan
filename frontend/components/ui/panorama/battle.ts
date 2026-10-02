@@ -46,6 +46,8 @@ export interface LogEntry {
     id: number;
     text: string;
     tone: LogTone;
+    /** Bu satırda atılan zarlar (s: yüz sayısı, v: gelen) */
+    dice?: { s: number; v: number }[];
 }
 
 export interface GridSettings {
@@ -84,7 +86,7 @@ function read(panoId: string | number): BattleState {
                 tokens: Array.isArray(v.tokens) ? v.tokens : [],
                 rules: v.rules,
                 combat: v.combat ?? null,
-                log: Array.isArray(v.log) ? v.log.slice(-60) : [],
+                log: Array.isArray(v.log) ? v.log.slice(-150) : [],
             };
         }
     } catch {
@@ -96,7 +98,9 @@ function read(panoId: string | number): BattleState {
 /** Panoramaya özel savaş durumu; her değişiklik saklanır */
 export function useBattle(panoId: string | number) {
     const [state, setState] = useState<BattleState>(EMPTY);
-    useEffect(() => setState(read(panoId)), [panoId]);
+    useEffect(() => {
+        setState(read(panoId));
+    }, [panoId]);
 
     const update = useCallback(
         (fn: (s: BattleState) => BattleState) =>

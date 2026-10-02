@@ -166,7 +166,9 @@ const Standee = ({ token, image, height, maxWidth, yaw, order, onGrab, onSize, f
     // Çok geniş görselde (ör. kanatlı canavar) boy kısalır, genişlik kareyi fazla taşmaz
     const w = Math.min(height * aspect, maxWidth);
     const h = w / aspect;
-    useEffect(() => onSize(fallen ? h * 0.25 : h), [h, onSize, fallen]);
+    useEffect(() => {
+        onSize(fallen ? h * 0.25 : h);
+    }, [h, onSize, fallen]);
     if (!art) return null;
     return (
         // Baygın/ölü karakter sırtüstü yere düşer

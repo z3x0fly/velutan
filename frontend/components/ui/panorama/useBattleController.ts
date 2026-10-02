@@ -40,7 +40,9 @@ export function useBattleController(panoSlug: string, regionSlug = '') {
     const [localBattle, setLocalBattle] = useBattle(panoSlug);
     // Oyuncunun kendi token'ını taşıması anında görünsün; GM'den yeni durum gelince silinir
     const [moves, setMoves] = useState<Record<string, { cx: number; cz: number }>>({});
-    useEffect(() => setMoves({}), [sess.remote?.version]);
+    useEffect(() => {
+        setMoves({});
+    }, [sess.remote?.version]);
     const remoteState = (sess.remote?.state as BattleState | undefined) ?? EMPTY_REMOTE;
     const battle: BattleState = isPlayer
         ? { ...remoteState, tokens: remoteState.tokens.map((t) => (moves[t.id] ? { ...t, ...moves[t.id] } : t)) }
@@ -72,11 +74,15 @@ export function useBattleController(panoSlug: string, regionSlug = '') {
         setTimeout(() => setToast((cur) => (cur?.id === t.id ? null : cur)), 3800);
     }, []);
 
-    const log = (text: string, tone: LogTone = 'info') => {
+    // Son günlük satırından beri atılan zarlar: satırla birlikte saklanır (günlükte zar şekilleriyle görünür)
+    const rolled = useRef<{ s: number; v: number }[]>([]);
+    const log = (text: string, tone: LogTone = 'info', extraDice?: { s: number; v: number }[]) => {
+        const dice = extraDice ?? rolled.current.splice(0);
         // Oyuncunun atışları masaya gider: GM günlüğe yazar, herkes görür
-        if (isPlayer) return void sessionStore.act({ type: 'zar', label: text, tone });
+        if (isPlayer) return void sessionStore.act({ type: 'zar', label: text, tone, dice });
         if (!latest.current.rules?.log) return;
-        setBattle((s) => ({ ...s, log: [...(s.log ?? []), { id: Date.now() * 100 + (logId.current++ % 100), text, tone }].slice(-60) }));
+        const entry = { id: Date.now() * 100 + (logId.current++ % 100), text, tone, ...(dice.length ? { dice } : {}) };
+        setBattle((s) => ({ ...s, log: [...(s.log ?? []), entry].slice(-150) }));
     };
 
     const token = (id: string) => latest.current.tokens.find((t) => t.id === id);
@@ -163,6 +169,7 @@ export function useBattleController(panoSlug: string, regionSlug = '') {
     const d20 = async (edge: Edge, label: string, c?: string) => {
         const req: DieRequest[] = edge === 'normal' ? [{ sides: 20, color: c }] : [{ sides: 20, color: c }, { sides: 20, color: c }];
         const v = await diceStore.roll(req, label + edgeLabel(edge));
+        rolled.current.push(...v.map((x) => ({ s: 20, v: x })));
         const nat = edge === 'advantage' ? Math.max(...v) : edge === 'disadvantage' ? Math.min(...v) : v[0];
         return { nat, rolls: v };
     };
@@ -172,6 +179,7 @@ export function useBattleController(panoSlug: string, regionSlug = '') {
         if (!d.count) return { total: d.bonus, detail: String(d.bonus) };
         const count = crit ? d.count * 2 : d.count;
         const v = await diceStore.roll(Array.from({ length: count }, () => ({ sides: d.sides as DieRequest['sides'], color: c })), label);
+        rolled.current.push(...v.map((x) => ({ s: d.sides, v: x })));
         const sum = v.reduce((a, b) => a + b, 0);
         return { total: Math.max(0, sum + d.bonus), detail: `[${v.join('+')}]${d.bonus ? signed(d.bonus) : ''}` };
     };
@@ -181,6 +189,7 @@ export function useBattleController(panoSlug: string, regionSlug = '') {
     const run = async (fn: () => Promise<void>) => {
         if (busyRef.current) return;
         busyRef.current = true;
+        rolled.current = [];
         setBusy(true);
         try {
             await fn();
@@ -200,6 +209,7 @@ export function useBattleController(panoSlug: string, regionSlug = '') {
             // Herkesin d20'si tek atışta, taraf renginde (çok kalabalıkta masa yerine anında)
             const req = alive.map((t) => ({ sides: 20 as const, color: color(t) }));
             const v = alive.length <= 10 ? await diceStore.roll(req, 'İnisiyatif') : req.map(() => Math.floor(Math.random() * 20) + 1);
+            rolled.current.push(...v.map((x) => ({ s: 20, v: x })));
             const order = alive
                 .map((t, i) => ({ id: t.id, init: v[i] + bonus(t), dex: sheetOf(t).abilities.dex }))
                 .sort((a, b) => b.init - a.init || b.dex - a.dex)
@@ -441,7 +451,7 @@ export function useBattleController(panoSlug: string, regionSlug = '') {
                 if (a.type === 'zar') {
                     // GM günlüğe yazar ve bildirir; bildirim durumla bütün oyunculara gider
                     if (me.role === 'gm') {
-                        handlers.current.log(`🎲 ${a.from.name}: ${a.label}`, (a.tone as LogTone) || 'roll');
+                        handlers.current.log(`🎲 ${a.from.name}: ${a.label}`, (a.tone as LogTone) || 'roll', a.dice ?? []);
                         handlers.current.show(`🎲 ${a.from.name}`, a.label, (a.tone as LogTone) || 'roll');
                     }
                 }
