@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
 import { QualitySettings } from '../terrain/quality';
 import Terrain from './Terrain';
@@ -24,7 +24,11 @@ const MapLayers = React.memo(({ settings }: { settings: QualitySettings }) => (
         <Labels />
         {settings.clouds && <Clouds />}
         {/* Sürekli animasyon ister: yalnızca her kareyi çizen kademelerde */}
-        {settings.frameloop === 'always' && <Dragon />}
+        {settings.frameloop === 'always' && (
+            <Suspense fallback={null}>
+                <Dragon />
+            </Suspense>
+        )}
     </group>
 ));
 MapLayers.displayName = 'MapLayers';

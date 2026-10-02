@@ -51,6 +51,13 @@ export const INFO_PAGES: InfoPage[] = [
                     "Velutan'ın babası, dayımız Swaggybark'a (Alpcan Alpar) CanGPT'den ve w0fly'dan kocaman selam! Bu harita, senin kurduğun dünyada kaybolmayı sevenlerin sana küçük bir hediyesi.",
                 ],
             },
+            {
+                heading: 'Haritayı tavaf eden ejderha',
+                paragraphs: [
+                    'Gökyüzündeki ejderha modeli, spacewatermelon\'un "Dragon flying" çalışmasıdır (CC BY 4.0). Model haritaya uyarlanıp sıkıştırıldı, rengi Velutan\'ın kızılına çekildi.',
+                ],
+                links: [{ label: 'Dragon flying (Sketchfab)', href: 'https://sketchfab.com/3d-models/dragon-flying-5c8c586da7ad450a8e58b56289a26739' }],
+            },
         ],
     },
     {
