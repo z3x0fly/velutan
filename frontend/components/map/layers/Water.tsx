@@ -39,10 +39,37 @@ const WAVES = /* glsl */ `
             + seaDepth(xz + vec2(r, -r)) + seaDepth(xz + vec2(-r, -r))) / 6.0;
     }
 
+    // Açık deniz derinliği: geniş çevrenin ortalaması. Deniz tabanı boyalı haritadan türediği için açıkta
+    // tekrar eden sığ lekeler var; kıyıdan uzaktaki bu lekeler köpük/sığ renk vermesin.
+    float seaDepthWide(vec2 xz) {
+        float s = 0.0;
+        for (int i = 0; i < 8; i++) {
+            float a = float(i) * 0.785398;
+            s += seaDepth(xz + vec2(cos(a), sin(a)) * 0.55);
+        }
+        return s / 8.0;
+    }
+
+    // Gürültü (sin tabanlı değil: büyük koordinatta desen/şerit vermez)
+    float hash(vec2 p) {
+        vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+        p3 += dot(p3, p3.yzx + 33.33);
+        return fract((p3.x + p3.y) * p3.z);
+    }
+    float noise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
+    }
+
     // Yönlü dalgalar (batıdan esen rüzgâr). xyz: yükseklik ve x/z eğimleri.
     // count: kaç dalga toplanır (yüzey kaydırmada yalnızca uzun dalgalar: örgü kısa dalgayı köşeli gösterir)
+    // Tekrar eden desen olmasın: alan gürültüyle bükülür (dalga sırtları düz değil), her dalganın yönü ve
+    // boyu yerden yere gürültüyle değişir; deniz her yerde farklı görünür.
     vec3 waveSum(vec2 p, float t, int count) {
         vec3 acc = vec3(0.0);
+        vec2 warp = vec2(noise(p * 0.31 + vec2(t * 0.013, 0.0)), noise(p * 0.31 + vec2(41.7, -t * 0.011))) - 0.5;
+        vec2 q = p + warp * 2.2;
         // yön, dalga boyu, genlik
         vec4 W[5];
         W[0] = vec4(normalize(vec2(1.0, 0.25)), 1.35, 1.0);
@@ -52,12 +79,16 @@ const WAVES = /* glsl */ `
         W[4] = vec4(normalize(vec2(-0.6, 0.8)), 0.17, 0.09);
         for (int i = 0; i < 5; i++) {
             if (i >= count) break;
+            float fi = float(i);
+            // Yerel yön sapması (±25°) ve genlik (öbek öbek kabaran deniz)
+            float r = (noise(p * 0.11 + fi * 7.31) - 0.5) * 0.9;
+            vec2 dir = vec2(W[i].x * cos(r) - W[i].y * sin(r), W[i].x * sin(r) + W[i].y * cos(r));
             float k = 6.28318 / W[i].z;
             float speed = sqrt(9.8 / k) * 0.16;
-            float ph = k * dot(W[i].xy, p) - speed * k * t;
-            float a = W[i].w;
+            float ph = k * dot(dir, q) - speed * k * t + fi * 1.7;
+            float a = W[i].w * (0.35 + 1.3 * noise(p * 0.19 - fi * 3.9 + t * 0.006));
             acc.x += a * sin(ph);
-            acc.yz += a * k * cos(ph) * W[i].xy;
+            acc.yz += a * k * cos(ph) * dir;
         }
         return acc;
     }
@@ -106,20 +137,18 @@ const fragmentShader = /* glsl */ `
     varying vec2 vUv;
     varying vec3 vWorld;
 
-    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-    float noise(vec2 p) {
-        vec2 i = floor(p), f = fract(p);
-        vec2 u = f * f * (3.0 - 2.0 * f);
-        return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
-    }
+    // Katmanlı gürültü: her katman döndürülür (eksenlere hizalı kare desen olmasın)
     float fbm(vec2 p) {
         float v = 0.0, a = 0.5;
-        for (int i = 0; i < 3; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; }
+        mat2 m = mat2(0.8, 0.6, -0.6, 0.8);
+        for (int i = 0; i < 3; i++) { v += a * noise(p); p = m * p * 2.03 + 11.7; a *= 0.5; }
         return v;
     }
 
     void main() {
-        float d = seaDepthSmooth(vWorld.xz);
+        float dLocal = seaDepthSmooth(vWorld.xz);
+        // Kıyıda gerçek derinlik; açıkta sığ lekeler bastırılır
+        float d = max(dLocal, seaDepthWide(vWorld.xz) - 0.12);
         float t = uTime;
         vec2 p = vWorld.xz;
 
@@ -157,21 +186,24 @@ const fragmentShader = /* glsl */ `
         vec3 color = mix(water, uSky, fres * 0.65);
         vec3 H = normalize(L + V);
         float nh = max(dot(N, H), 0.0);
-        float spec = pow(nh, 260.0) * 1.1 * detail + pow(nh, 24.0) * 0.05;
+        // Parıltı ince kırışıklıkla kırılır: tek parça beyaz leke değil, serpiştirilmiş pırıltı
+        float glint = detail > 0.01 ? smoothstep(0.45, 0.8, fbm(p * 11.0 + vec2(t * 0.5, -t * 0.4))) : 0.0;
+        float spec = pow(nh, 260.0) * (0.25 + 0.55 * glint) * detail + pow(nh, 24.0) * 0.05;
         color += uSunColor * spec * shadow;
 
         // Kıyı köpüğü: kıyıya vuran dalga çizgileri
         float foam = 0.0;
         if (d < 0.12) {
-            float n = noise(p * 5.0 + t * 0.15);
+            float n = fbm(p * 4.0 + t * 0.15);
             float band = smoothstep(0.11, 0.0, d);
             float surf = smoothstep(0.55, 0.95, sin(d * 70.0 - t * 1.6 + n * 6.0) * 0.5 + 0.5) * smoothstep(0.1, 0.02, d);
             foam = (band * 0.3 + surf * 0.6) * (0.6 + 0.4 * n);
         }
         // Açık denizde dalga tepesinde ince beyaz köpük (yalnızca yakında)
         if (detail > 0.01 && swellK > 0.01) {
-            float crest = smoothstep(0.88, 1.0, w.x * 0.5 + 0.5) * smoothstep(0.5, 0.95, noise(p * 22.0 - t * 0.4)) * swellK * detail;
-            foam += crest * 0.18;
+            // Döndürülmüş katmanlı gürültü: hücre/kare deseni yok
+            float crest = smoothstep(0.86, 1.0, w.x * 0.5 + 0.5) * smoothstep(0.55, 0.85, fbm(p * 6.0 - vec2(t * 0.3, t * 0.2))) * swellK * detail;
+            foam += crest * 0.12;
         }
         foam = clamp(foam, 0.0, 1.0);
         color = mix(color, uFoam, foam);
@@ -180,7 +212,8 @@ const fragmentShader = /* glsl */ `
         color *= mix(0.55, 1.0, shadow);
 
         // Kıyıda boyalı haritanın sığlığı seçilsin; açıkta su örtsün
-        float alpha = mix(0.38, 0.86, smoothstep(0.02, 0.5, d)) + foam * 0.3 + spec * 0.3;
+        // Açıkta altta boyalı haritanın tekrar eden deniz dokusu görünmesin (su neredeyse örter)
+        float alpha = mix(0.38, 0.95, smoothstep(0.02, 0.5, d)) + foam * 0.3 + spec * 0.3;
         alpha = clamp(alpha, 0.0, 1.0);
         // Kenarlara doğru yumuşak geçiş (çerçeveye taşmasın)
         vec2 e = smoothstep(vec2(0.0), vec2(0.012), vUv) * smoothstep(vec2(0.0), vec2(0.012), 1.0 - vUv);

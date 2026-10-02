@@ -39,14 +39,11 @@ const MapScaleBar = () => {
 
     return (
         <div 
-            className="flex flex-col gap-2 p-4 select-none pointer-events-none group animate-in fade-in slide-in-from-bottom-5 duration-700"
-            style={{ 
-                background: 'radial-gradient(ellipse at bottom left, rgba(16, 12, 8, 0.4) 0%, transparent 70%)' 
-            }}
+            className="flex flex-col gap-1 px-1 select-none pointer-events-none group animate-in fade-in duration-700"
         >
             <div className="relative flex flex-col items-start gap-1">
                 {/* Distance Labels */}
-                <div className="flex justify-between w-full px-0.5 text-[14px] font-serif font-black text-white tracking-widest uppercase drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
+                <div className="flex justify-between w-full px-0.5 text-[11px] font-serif font-black text-white/90 tracking-widest uppercase drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
                     <span className="flex flex-col items-center">
                         0
                         <div className="w-[1.5px] h-1.5 bg-white" />
@@ -81,15 +78,8 @@ const MapScaleBar = () => {
                 </div>
 
                 {/* Metadata */}
-                <div className="mt-1 flex items-center gap-3 opacity-90">
-                    <span className="text-[12px] font-bold tracking-[0.2em] text-white/80 uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">Kartografik Veri</span>
-                    <div className="h-[1px] w-8 bg-white/40" />
-                    <span className="text-[13px] font-serif italic text-amber-300 tracking-wider font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">{(zoom / initialZoom).toFixed(2)}x Büyütme</span>
-                </div>
+                <span className="mt-0.5 text-[11px] font-serif italic text-amber-300/80 tracking-wider drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">{(zoom / initialZoom).toFixed(1)}x büyütme</span>
             </div>
-
-            {/* Corner HUD Accent */}
-            <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-amber-500/20 rounded-bl-xl pointer-events-none" />
         </div>
     );
 };

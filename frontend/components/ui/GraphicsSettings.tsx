@@ -77,9 +77,10 @@ export default function GraphicsSettings() {
             <button
                 onClick={() => setOpen(true)}
                 aria-label="Ayarlar"
-                className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-black/70 p-2 md:px-3 md:py-1.5 text-[12px] font-black uppercase tracking-[0.15em] text-amber-500/80 transition-colors hover:border-amber-500 hover:text-amber-400"
+                title="Ayarlar: grafik kalitesi"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-600/30 bg-black/70 text-amber-500/80 transition-colors hover:border-amber-500 hover:text-amber-400"
             >
-                <Settings2 size={12} /> <span className="hidden md:inline">Ayarlar</span>
+                <Settings2 size={16} />
             </button>
 
             {open &&

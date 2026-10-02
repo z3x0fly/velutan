@@ -247,7 +247,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
              <div className="bg-black/90 border-2 border-amber-600/40 p-3 md:p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] md:min-w-[280px]">
                 <div className="flex justify-between items-center mb-4 border-b border-amber-600/20 pb-2">
                     <h3 className="text-amber-500 font-serif italic font-bold tracking-widest text-sm">YOLCULUK ÖZETİ</h3>
-                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.6</span>
+                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.7</span>
                 </div>
                 
                 <div className="space-y-4">
@@ -337,7 +337,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
 
 
         {/* Sol Üst: Legend + Seyahat Kontrolleri */}
-        <div className="absolute top-3 left-3 md:top-10 md:left-10 pointer-events-auto z-[10002]">
+        <div className="absolute top-3 left-3 md:top-8 md:left-8 pointer-events-auto z-[10002]">
           <LegendPanel 
             selectedType={selectedType} 
             onTypeSelect={setSelectedType} 
@@ -367,7 +367,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
         <LogoBadge />
 
         {/* COMPASS: z-index artırıldı ve konumu sabitlendi */}
-        <div className="absolute top-1 right-1 md:top-10 md:right-10 pointer-events-auto scale-[0.45] md:scale-75 origin-top-right z-[10001]">
+        <div className="absolute top-1 right-1 md:top-8 md:right-8 pointer-events-auto scale-[0.4] md:scale-[0.55] origin-top-right z-[10001] opacity-90 hover:opacity-100 transition-opacity">
           <VintageCompass onReset={handleCompassReset} />
           
           {/* Spam Feedback floating text */}
@@ -379,10 +379,13 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
         </div>
 
         {/* BOTTOM LEFT: Map Scale Bar & Dice Roller */}
-        <div className="absolute bottom-3 left-3 md:bottom-6 md:left-10 pointer-events-auto flex flex-col items-start gap-2 md:gap-5">
-           <DiceTray />
+        {/* Sol alt: ölçek ve tek sıra düğme (zar, ayarlar, hakkında) */}
+        <div className="absolute bottom-3 left-3 md:bottom-8 md:left-8 pointer-events-auto flex flex-col items-start gap-3">
            <div className="hidden md:block"><MapScaleBar /></div>
-           <InfoLinks />
+           <div className="flex items-center gap-2">
+             <DiceTray />
+             <InfoLinks />
+           </div>
         </div>
 
         {/* BOTTOM: Navigator Icon REMOVED */}
@@ -454,7 +457,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
       )}
 
       {/* 5. AMBİYANS: Velutan Ezgileri (YouTube; ses ayarlı) */}
-      <div className="fixed bottom-3 right-3 md:bottom-10 md:right-10 z-[10000] pointer-events-auto">
+      <div className="fixed bottom-3 right-3 md:bottom-8 md:right-8 z-[10000] pointer-events-none">
         <AmbiencePlayer />
       </div>
     </div>

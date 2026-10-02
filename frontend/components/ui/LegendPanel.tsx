@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronUp, Map, Navigation, Trash2, Play, Brush, MapPinned } from 'lucide-react';
+import { Map, Navigation, Trash2, Play, Brush, MapPinned, X } from 'lucide-react';
 import PinsTab from './PinsTab';
 import RouteBreakdown from './RouteBreakdown';
 import type { RouteAnalysis } from '../map/travelAnalysis';
@@ -41,12 +41,16 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
     isSimulating,
     showBrush = false
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  // Telefonda harita görünsün diye kapalı başlar
-  useEffect(() => {
-    if (window.matchMedia?.('(max-width: 767px)').matches) setIsCollapsed(true);
-  }, []);
+  // Harita görünsün diye kapalı başlar: yalnızca ince sekme çubuğu; sekmeye basınca o sekme açılır
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [activeTab, setActiveTab] = useState<'legend' | 'travel' | 'pins' | 'draw'>('legend');
+  const pick = (tab: typeof activeTab) => {
+    if (!isCollapsed && activeTab === tab) return setIsCollapsed(true);
+    setActiveTab(tab);
+    setIsCollapsed(false);
+  };
+  const tabClass = (tab: typeof activeTab) =>
+    `flex items-center justify-center gap-1.5 py-2.5 transition-colors ${isCollapsed ? 'px-3' : 'min-w-0 flex-1 px-1.5'} ${!isCollapsed && activeTab === tab ? 'bg-amber-600/15 text-amber-400' : 'text-zinc-400 hover:text-amber-200'}`;
   const { pins, placing } = usePins();
 
   // Bir işarete haritadan tıklanınca defter sekmesi açılsın
@@ -93,97 +97,68 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
   ];
 
   return (
-    <div className={`relative transition-all duration-500 ease-in-out ${isCollapsed ? 'w-12 h-12 md:w-16 md:h-16 overflow-hidden' : 'w-[calc(100vw-24px)] md:w-80 p-0 max-h-[calc(100dvh-170px)] md:max-h-[calc(100vh-330px)] min-h-[220px] overflow-y-auto overflow-x-hidden custom-scrollbar'} glass-panel rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-amber-600/20`}>
-      <div className="hud-corner hud-corner-tl opacity-60" />
-      <div className="hud-corner hud-corner-tr opacity-40" />
-
-      {/* Toggle Button */}
-      <button 
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className={`absolute z-30 text-amber-500/60 hover:text-amber-500 transition-all duration-300 flex items-center justify-center
-          ${isCollapsed ? 'inset-0 w-full h-full' : 'top-0 right-0 w-9 h-[49px] border-l border-amber-600/10'}`}
-      >
-        {isCollapsed ? (
-          <div className="flex flex-col items-center gap-1 group translate-y-1">
-            <Map size={24} className="group-hover:scale-110 transition-transform text-amber-500" />
-            <span className="text-[12px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity text-amber-500/80">Aç</span>
-          </div>
-        ) : (
-          <ChevronUp size={20} />
-        )}
-      </button>
-
-      {/* Tab Switcher */}
-      {!isCollapsed && (
-        <div className="flex w-full border-b border-amber-600/20 bg-black/40 pr-9">
-           <button 
-             onClick={() => setActiveTab('travel')}
-             className={`flex-1 py-4 flex items-center justify-center gap-1.5 transition-all ${activeTab === 'travel' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-           >
-              <Navigation size={14} className={isTravelMode ? 'animate-pulse' : ''} />
-              <span className="text-[12px] font-black uppercase tracking-[0.14em] whitespace-nowrap">Seyahat</span>
+    <div className={`relative glass-panel overflow-hidden rounded-xl border border-amber-600/25 shadow-[0_8px_30px_rgba(0,0,0,0.45)] ${isCollapsed ? 'w-fit' : 'w-[calc(100vw-24px)] md:w-[300px]'}`}>
+      {/* Sekme çubuğu: kapalıyken tek başına durur */}
+      <div className={`flex w-full items-stretch text-[11px] font-black uppercase tracking-[0.14em] ${isCollapsed ? '' : 'border-b border-amber-600/20 bg-black/40'}`}>
+           <button onClick={() => pick('travel')} aria-label="Seyahat" title="Seyahat: rota çiz, süre hesapla" className={tabClass('travel')}>
+              <Navigation size={14} className={isTravelMode ? 'animate-pulse text-amber-400' : ''} />
+              <span className={isCollapsed ? 'hidden md:inline' : ''}>Seyahat</span>
            </button>
-           <button 
-             onClick={() => setActiveTab('legend')}
-             className={`flex-1 py-4 flex items-center justify-center gap-1.5 transition-all border-l border-amber-600/10 ${activeTab === 'legend' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-           >
-              <Map size={14} />
-              <span className="text-[12px] font-black uppercase tracking-[0.14em] whitespace-nowrap">Lejant</span>
+           <button onClick={() => pick('legend')} aria-label="Lejant" title="Lejant: türe göre süz, sınırlar" className={`${tabClass('legend')} border-l border-amber-600/10`}>
+              <Map size={14} className={selectedType ? 'text-amber-400' : ''} />
+              <span className={isCollapsed ? 'hidden md:inline' : ''}>Lejant</span>
            </button>
-           <button
-             onClick={() => setActiveTab('pins')}
-             className={`flex-1 py-4 flex items-center justify-center gap-1.5 transition-all border-l border-amber-600/10 ${activeTab === 'pins' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-           >
+           <button onClick={() => pick('pins')} aria-label="Defter" title="Defter: işaretlerin" className={`${tabClass('pins')} border-l border-amber-600/10`}>
               <MapPinned size={14} className={placing ? 'animate-pulse text-amber-400' : ''} />
-              <span className="text-[12px] font-black uppercase tracking-[0.14em] whitespace-nowrap">Defter{pins.length ? <sup className="ml-0.5 text-[10px] text-amber-400">{pins.length}</sup> : null}</span>
+              <span className={isCollapsed ? 'hidden md:inline' : ''}>Defter{pins.length ? <sup className="ml-0.5 text-[10px] text-amber-400">{pins.length}</sup> : null}</span>
            </button>
-           {showBrush && <button 
-             onClick={() => setActiveTab('draw')}
-             className={`flex-1 py-4 flex items-center justify-center gap-1.5 transition-all border-l border-amber-600/10 ${activeTab === 'draw' ? 'bg-amber-600/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-           >
+           {showBrush && <button onClick={() => pick('draw')} aria-label="Fırça" className={`${tabClass('draw')} border-l border-amber-600/10`}>
               <Brush size={14} className={paintMode ? 'animate-pulse text-amber-400' : ''} />
-              <span className="text-[12px] font-black uppercase tracking-[0.14em] whitespace-nowrap">Fırça</span>
+              <span className={isCollapsed ? 'hidden md:inline' : ''}>Fırça</span>
            </button>}
-        </div>
-      )}
+           {!isCollapsed && (
+             <button onClick={() => setIsCollapsed(true)} aria-label="Paneli kapat" title="Kapat" className="shrink-0 border-l border-amber-600/10 px-2.5 text-amber-500/60 hover:text-amber-300">
+               <X size={15} />
+             </button>
+           )}
+      </div>
 
-      {/* Content */}
-      <div className={`relative z-10 flex flex-col p-6 transition-opacity duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      {/* İçerik */}
+      {!isCollapsed && (
+      <div className="relative z-10 flex max-h-[calc(100dvh-170px)] md:max-h-[calc(100vh-300px)] flex-col overflow-y-auto overflow-x-hidden p-4 custom-scrollbar">
         
         {activeTab === 'legend' && (
-          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-left duration-300">
-            <div className="flex justify-between items-end border-b border-amber-500/10 pb-3">
-              <div>
-                <span className="text-[12px] font-bold tracking-[0.3em] text-amber-500/60 uppercase">Harita Bilgisi</span>
-                <h3 className="text-xl font-serif font-black text-amber-400 tracking-wide mt-1">Görünüm</h3>
-              </div>
+          <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold tracking-[0.2em] text-amber-500/70 uppercase">Türe göre süz</span>
               {selectedType && (
-                <button 
+                <button
                     onClick={() => onTypeSelect?.(null)}
-                    className="text-[12px] uppercase font-bold text-red-400 hover:text-red-300 px-2 py-1 transition-all"
+                    className="text-[11px] uppercase font-bold text-red-400 hover:text-red-300 transition-colors"
                 >
                     Sıfırla
                 </button>
               )}
             </div>
 
-            <div className="flex flex-col gap-2.5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-2 gap-1">
                 {legendItems.map((item) => (
-                    <div 
+                    <button
                         key={item.type}
                         onClick={() => onTypeSelect?.(selectedType === item.type ? null : item.type)}
-                        className={`flex items-center gap-4 group cursor-pointer p-1.5 rounded-lg transition-all ${selectedType === item.type ? 'bg-amber-600/20 border border-amber-600/40' : 'hover:bg-white/5 border border-transparent'}`}
+                        aria-pressed={selectedType === item.type}
+                        className={`flex items-center gap-2 group text-left px-1.5 py-1 rounded-md transition-colors ${selectedType === item.type ? 'bg-amber-600/20 ring-1 ring-amber-600/40' : 'hover:bg-white/5'}`}
                     >
-                        <div className={`w-8 h-8 rounded-full border ${selectedType === item.type ? 'border-amber-500' : 'border-white/10'} flex items-center justify-center bg-black/60 group-hover:border-amber-500/40 transition-colors`}>
+                        <div className={`w-6 h-6 shrink-0 rounded-full border ${selectedType === item.type ? 'border-amber-500' : 'border-white/10'} flex items-center justify-center bg-black/60 group-hover:border-amber-500/40 transition-colors`}>
                             <div 
                                 className={`w-3 h-3 ${item.color} ${item.shape === 'triangle-up' ? 'w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[8px] border-b-purple-500 bg-transparent' : item.shape}`} 
                                 style={item.shapeStyle}
                             />
                         </div>
-                        <span className={`text-[13px] font-bold uppercase tracking-widest transition-colors ${selectedType === item.type ? 'text-amber-100' : 'text-zinc-500 group-hover:text-amber-100'}`}>
+                        <span className={`text-[11.5px] font-bold uppercase tracking-wide leading-tight transition-colors ${selectedType === item.type ? 'text-amber-100' : 'text-zinc-400 group-hover:text-amber-100'}`}>
                             {item.label}
                         </span>
-                    </div>
+                    </button>
                 ))}
             </div>
             <BordersSection />
@@ -193,13 +168,8 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
         {activeTab === 'pins' && <PinsTab />}
 
         {activeTab === 'travel' && (
-          <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-left duration-300">
-             <div className="flex flex-col gap-1">
-                <span className="text-[12px] font-bold tracking-[0.3em] text-amber-500/60 uppercase">Simülasyon</span>
-                <h3 className="text-xl font-serif font-black text-amber-400 tracking-wide">Yol Hazırlığı</h3>
-             </div>
-
-             <div className="flex flex-col gap-4 bg-black/40 p-4 rounded-xl border border-amber-600/10">
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+             <div className="flex flex-col gap-4 bg-black/40 p-3 rounded-lg border border-amber-600/10">
                 <div className="flex justify-between items-center">
                     <span className="text-[13px] font-black uppercase text-zinc-400">Seyahat Modu</span>
                     <button 
@@ -233,8 +203,8 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                 </div>
              </div>
 
-             <div className="flex flex-col gap-2 pt-4">
-                <button 
+             <div className="flex flex-col gap-2">
+                <button
                    onClick={() => setTravelPath([])}
                    className="flex items-center justify-center gap-2 py-3 bg-red-900/20 border border-red-500/20 text-red-400 hover:bg-red-900/40 transition-all rounded-lg text-[13px] font-black uppercase tracking-widest"
                 >
@@ -260,8 +230,8 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                 )}
              </div>
 
-             <div className="mt-2 text-[12px] italic text-zinc-500 border-l-2 border-amber-600/20 pl-3 py-1">
-                Haritaya tıklayarak durak ekleyebilirsin.
+             <div className="text-[12px] italic text-zinc-500 border-l-2 border-amber-600/20 pl-3 py-1">
+                Seyahat modunu açıp haritaya tıklayarak durak ekle.
              </div>
           </div>
         )}
@@ -351,18 +321,8 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
           </div>
         )}
 
-        {/* Footer info */}
-        <div className="pt-4 flex justify-between items-center opacity-40 border-t border-amber-500/10 mt-6">
-          <div className="flex flex-col">
-            <span className="text-[12px] uppercase font-bold tracking-tighter">Kartografik Veri</span>
-            <span className="text-[12px] font-serif italic text-amber-200/40 uppercase">Aktif Velutan</span>
-          </div>
-          <div className="flex items-center gap-1.5 grayscale opacity-50">
-             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-             <span className="text-[12px] font-black">CANLI</span>
-          </div>
-        </div>
       </div>
+      )}
     </div>
   );
 };

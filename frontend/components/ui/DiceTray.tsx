@@ -206,15 +206,12 @@ export default function DiceTray() {
                 onClick={() => setOpen((o) => !o)}
                 aria-expanded={open}
                 title={open ? 'Zar tepsisini kapat' : 'Zar tepsisini aç'}
-                className={`vl-plaque group flex items-center gap-2.5 rounded-md py-1.5 pl-1.5 pr-3.5 transition-colors ${open ? 'border-[#e2c178]' : ''}`}
+                className={`vl-plaque group flex h-9 items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-3 transition-colors ${open ? 'border-[#e2c178]' : ''}`}
             >
                 <span className="dice-wobble">
-                    <DieShape die={20} value={last?.total ?? 20} size={36} tone={last?.crit ?? (last ? undefined : 'muted')} />
+                    <DieShape die={20} value={last?.total ?? 20} size={30} tone={last?.crit ?? (last ? undefined : 'muted')} />
                 </span>
-                <span className="flex flex-col items-start leading-none">
-                    <span className="font-display text-[15px] font-bold tracking-wider text-[#f1dca6]">Zar</span>
-                    {last && <span className="mt-1 font-serif text-[13px] italic text-[#c9a35a]/80">son: {last.total}</span>}
-                </span>
+                <span className="font-display text-[14px] font-bold tracking-wider text-[#f1dca6]">Zar</span>
             </button>
 
             {open &&

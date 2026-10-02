@@ -234,11 +234,12 @@ export default function AmbiencePlayer() {
     const progress = time.total > 0 ? (time.at / time.total) * 100 : 0;
 
     return (
-        <div className="flex flex-col items-end gap-2">
+        // Kapsayıcı tıklamayı yutmaz: gizli oynatıcı ekran genişliğinde, alttaki düğmeleri örtmesin
+        <div className="pointer-events-none flex flex-col items-end gap-2 [&>*]:pointer-events-auto">
             {/* Oynatıcı + liste. Oynatıcı DOM'dan hiç sökülmez: panel kapanınca müzik sürer */}
             <div
                 className={`w-[calc(100vw-24px)] md:w-[360px] overflow-hidden rounded-2xl border-2 border-amber-600/30 bg-[#0a0a0a] shadow-[0_0_60px_rgba(0,0,0,0.8)] transition-all duration-300 ${
-                    view === 'bar' && showList ? 'max-h-[60dvh] opacity-100' : 'pointer-events-none max-h-0 border-0 opacity-0'
+                    view === 'bar' && showList ? 'max-h-[60dvh] opacity-100' : '!pointer-events-none max-h-0 border-0 opacity-0'
                 }`}
                 aria-hidden={!(view === 'bar' && showList)}
             >
@@ -341,12 +342,13 @@ export default function AmbiencePlayer() {
             {view !== 'bar' && (
                 <button
                     onClick={() => (view === 'mini' ? setView('bar') : start())}
-                    className="flex items-center gap-4 rounded-full border-2 border-amber-500/50 bg-black/90 p-2 text-amber-500 shadow-2xl transition-all duration-300 hover:scale-105 hover:border-amber-400 active:scale-95 md:px-8 md:py-4"
+                    className="flex h-11 items-center gap-2.5 rounded-full border border-amber-500/40 bg-black/80 p-1 text-amber-500 shadow-xl transition-colors duration-300 hover:border-amber-400 md:pl-4"
                     aria-label={view === 'mini' ? 'Müzik panelini aç' : 'Ambiyansı aç'}
+                    title={view === 'mini' ? track.title : 'Velutan Ezgileri'}
                 >
-                    <div className="hidden flex-col items-end md:flex">
-                        <span className="text-[13px] font-black uppercase tracking-[0.2em]">{view === 'mini' ? (playing ? 'ÇALIYOR' : 'DURAKLATILDI') : 'AMBİYANSI AÇ'}</span>
-                        <span className="max-w-[180px] truncate text-right font-serif text-[12px] italic opacity-50">{view === 'mini' ? track.title : 'Velutan Ezgileri'}</span>
+                    <div className="hidden flex-col items-end leading-tight md:flex">
+                        <span className="text-[11px] font-black uppercase tracking-[0.18em]">{view === 'mini' ? (playing ? 'Çalıyor' : 'Duraklatıldı') : 'Müzik'}</span>
+                        <span className="max-w-[150px] truncate text-right font-serif text-[11px] italic opacity-50">{view === 'mini' ? track.title : 'Velutan Ezgileri'}</span>
                     </div>
                     <div className="rounded-full border border-amber-500/30 bg-amber-500/10 p-2">
                         {view === 'mini' && playing ? (
@@ -357,7 +359,7 @@ export default function AmbiencePlayer() {
                                 ))}
                             </span>
                         ) : (
-                            <Music2 size={20} />
+                            <Music2 size={18} />
                         )}
                     </div>
                 </button>

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Github, Heart, Sparkles, User, X } from 'lucide-react';
+import { Github, Heart, Info, Sparkles, User, X } from 'lucide-react';
 
 const REPO_URL = 'https://github.com/z3x0fly/velutan';
 import { INFO_PAGES, InfoPage } from '../../content/hakkinda';
@@ -14,9 +14,28 @@ const ICONS: Record<InfoPage['id'], React.ElementType> = {
     meraklisina: Sparkles,
 };
 
-/** Sol alttaki "Teşekkürler · Kim Yaptı? · Meraklısına" bağlantıları ve pencereleri */
+/** Sol alttaki ayarlar ve "Hakkında" menüsü (Teşekkürler · Kim Yaptı? · Meraklısına · GitHub) ile pencereleri */
 export default function InfoLinks() {
     const [open, setOpen] = useState<InfoPage | null>(null);
+    const [menu, setMenu] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Menü dışına tıklanınca ya da Esc ile kapanır
+    useEffect(() => {
+        if (!menu) return;
+        const onDown = (e: PointerEvent) => {
+            if (!menuRef.current?.contains(e.target as Node)) setMenu(false);
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setMenu(false);
+        };
+        window.addEventListener('pointerdown', onDown);
+        window.addEventListener('keydown', onKey);
+        return () => {
+            window.removeEventListener('pointerdown', onDown);
+            window.removeEventListener('keydown', onKey);
+        };
+    }, [menu]);
 
     useEffect(() => {
         if (!open) return;
@@ -27,31 +46,49 @@ export default function InfoLinks() {
 
     return (
         <>
-            <nav className="flex flex-wrap gap-2" aria-label="Hakkında">
+            <nav className="flex items-center gap-2" aria-label="Hakkında">
                 <GraphicsSettings />
-                {INFO_PAGES.map((page) => {
-                    const Icon = ICONS[page.id];
-                    return (
-                        <button
-                            key={page.id}
-                            onClick={() => setOpen(page)}
-                            aria-label={page.title}
-                            className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-black/70 p-2 md:px-3 md:py-1.5 text-[12px] font-black uppercase tracking-[0.15em] text-amber-500/80 transition-colors hover:border-amber-500 hover:text-amber-400"
-                        >
-                            <Icon size={12} /> <span className="hidden md:inline">{page.title}</span>
-                        </button>
-                    );
-                })}
-                <a
-                    href={REPO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="GitHub"
-                    title="GitHub"
-                    className="flex items-center justify-center rounded-full border border-amber-600/30 bg-black/70 p-1.5 text-amber-500/80 transition-colors hover:border-amber-500 hover:text-amber-400"
-                >
-                    <Github size={14} />
-                </a>
+                {/* Teşekkürler · Kim Yaptı? · Meraklısına · GitHub: tek menüde (harita kalabalık görünmesin) */}
+                <div ref={menuRef} className="relative">
+                    <button
+                        onClick={() => setMenu((v) => !v)}
+                        aria-expanded={menu}
+                        aria-label="Hakkında"
+                        title="Hakkında"
+                        className={`flex h-9 w-9 items-center justify-center rounded-full border bg-black/70 transition-colors hover:border-amber-500 hover:text-amber-400 ${menu ? 'border-amber-500 text-amber-400' : 'border-amber-600/30 text-amber-500/80'}`}
+                    >
+                        <Info size={16} />
+                    </button>
+                    {menu && (
+                        <div role="menu" className="absolute bottom-full left-0 mb-2 w-52 overflow-hidden rounded-xl border border-amber-600/30 bg-[#0d0905]/95 py-1 shadow-[0_10px_40px_rgba(0,0,0,0.7)] animate-in fade-in slide-in-from-bottom-1 duration-150">
+                            {INFO_PAGES.map((page) => {
+                                const Icon = ICONS[page.id];
+                                return (
+                                    <button
+                                        key={page.id}
+                                        role="menuitem"
+                                        onClick={() => {
+                                            setOpen(page);
+                                            setMenu(false);
+                                        }}
+                                        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] font-bold text-amber-100/80 transition-colors hover:bg-amber-500/10 hover:text-amber-300"
+                                    >
+                                        <Icon size={14} className="text-amber-500/80" /> {page.title}
+                                    </button>
+                                );
+                            })}
+                            <a
+                                href={REPO_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                role="menuitem"
+                                className="flex items-center gap-2.5 border-t border-amber-600/15 px-3.5 py-2 text-[13px] font-bold text-amber-100/80 transition-colors hover:bg-amber-500/10 hover:text-amber-300"
+                            >
+                                <Github size={14} className="text-amber-500/80" /> GitHub ↗
+                            </a>
+                        </div>
+                    )}
+                </div>
             </nav>
 
             {open &&

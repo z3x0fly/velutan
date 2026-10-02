@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.5.6';
+    const PATCH_VERSION = '1.5.7';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,7 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'Sade arayüz', desc: "Harita artık arayüzün altında kalmıyor: Seyahat, Lejant ve Defter sol üstte ince bir çubuk, bir sekmeye basınca açılıyor. Teşekkürler, Kim Yaptı?, Meraklısına ve GitHub tek 'Hakkında' menüsünde; zar, ayarlar, müzik, pusula ve logo küçüldü." },
                 { title: 'Günlükte geçmiş zarlar', desc: 'Savaş günlüğündeki her satırın altında o anda atılan zarlar şekilleriyle duruyor: hangi zar, kaç geldi; doğal 20 altın, doğal 1 kırmızı. Ortak masada oyuncuların zarları da.' },
                 { title: 'Ortak masa: oyuncular kendi ekranından', desc: "GM 'Oyuncuları davet et' der, bağlantıyı paylaşır. Oyuncular adını yazıp karakterini seçer; aynı mekânda aynı savaşı canlı görür, kendi karakterini yürütür, zarını atar. Atılan her zar herkesin ekranına ve günlüğe düşer." },
                 { title: 'Fizikli zarlar', desc: 'Zarları basılı tut, salla, savurarak fırlat: ekranda yuvarlanıp kenarlara çarpar, tıkırdar, üstte kalan yüz sayılır. Kısa dokunuş otomatik atar, telefonda sallayarak da atılır. d4, d6, d8, d10, d12, d20 ve d100.' },
@@ -58,6 +59,7 @@ const PatchNotesModal = () => {
             title: 'Düzeltilenler',
             icon: Wrench,
             items: [
+                { title: 'Denizde tekrar eden desen', desc: 'Okyanusta aynı desen kare kare tekrar ediyordu. Dalgalar artık gürültüyle bükülüyor; yönleri ve boyları yerden yere değişiyor, köpük ve parıltı serpiştiriliyor. Altta tekrar eden deniz dokusu da örtüldü.' },
                 { title: 'Savaş günlüğü kapanınca çökme', desc: 'Günlüğü çarpıyla kapatınca sayfa hata veriyordu; düzeltildi.' },
                 { title: 'Havada kalan ağaçlar', desc: 'Tepelerde ve yamaçlarda bazı ağaçlar zeminin biraz üstünde asılı duruyordu; artık hepsi çizilen zemine tam oturuyor, düşük kalitede de.' },
                 { title: 'Telefon uyumu', desc: 'Telefonda arayüz üst üste biniyordu. Logo, pusula, lejant ve alt düğmeler küçük ekrana göre yeniden yerleşti; lejant kapalı başlıyor, işaretler ve bilgi düğmeleri sadeleşti.' },
