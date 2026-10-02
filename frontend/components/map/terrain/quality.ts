@@ -5,7 +5,7 @@
  * çünkü antialias ve çizim döngüsü (sürekli / yalnızca değişince) bağlam oluşturulurken seçilmelidir.
  * Çalışırken FPS düşerse (PerformanceMonitor) ayarlar bir kademe daha hafifletilir.
  */
-export type QualityTier = 'high' | 'medium' | 'low' | 'minimal';
+export type QualityTier = 'ultra' | 'high' | 'medium' | 'low' | 'minimal';
 
 export interface QualitySettings {
     tier: QualityTier;
@@ -20,16 +20,21 @@ export interface QualitySettings {
     maxDpr: number;
     /** 'demand' = yalnızca kamera/içerik değişince çiz (zayıf cihazda CPU/GPU dinlenir) */
     frameloop: 'always' | 'demand';
+    /** Haritayı tavaf eden ejderha ve gölgesi (sürekli çizim ister) */
+    dragon: boolean;
 }
 
 const PRESETS: Record<QualityTier, Omit<QualitySettings, 'tier'>> = {
-    high: { textureSize: 4096, terrainSegments: [512, 450], treeFraction: 1, wind: true, clouds: true, waterAnimation: true, antialias: true, maxDpr: 1.75, frameloop: 'always' },
-    medium: { textureSize: 4096, terrainSegments: [384, 337], treeFraction: 0.6, wind: true, clouds: true, waterAnimation: true, antialias: true, maxDpr: 1.5, frameloop: 'always' },
-    low: { textureSize: 2048, terrainSegments: [256, 225], treeFraction: 0.3, wind: false, clouds: false, waterAnimation: false, antialias: false, maxDpr: 1, frameloop: 'demand' },
-    minimal: { textureSize: 2048, terrainSegments: [128, 112], treeFraction: 0, wind: false, clouds: false, waterAnimation: false, antialias: false, maxDpr: 1, frameloop: 'demand' },
+    // Güçlü ekran kartları için: zemin iki kat sık, ekranın tam çözünürlüğü. Otomatik seçilmez, elle açılır.
+    ultra: { textureSize: 4096, terrainSegments: [768, 674], treeFraction: 1, wind: true, clouds: true, waterAnimation: true, antialias: true, maxDpr: 3, frameloop: 'always', dragon: true },
+    high: { textureSize: 4096, terrainSegments: [512, 450], treeFraction: 1, wind: true, clouds: true, waterAnimation: true, antialias: true, maxDpr: 1.75, frameloop: 'always', dragon: true },
+    medium: { textureSize: 4096, terrainSegments: [384, 337], treeFraction: 0.6, wind: true, clouds: true, waterAnimation: true, antialias: true, maxDpr: 1.5, frameloop: 'always', dragon: true },
+    low: { textureSize: 2048, terrainSegments: [256, 225], treeFraction: 0.3, wind: false, clouds: false, waterAnimation: false, antialias: false, maxDpr: 1, frameloop: 'demand', dragon: false },
+    minimal: { textureSize: 2048, terrainSegments: [128, 112], treeFraction: 0, wind: false, clouds: false, waterAnimation: false, antialias: false, maxDpr: 1, frameloop: 'demand', dragon: false },
 };
 
-const ORDER: QualityTier[] = ['high', 'medium', 'low', 'minimal'];
+export const QUALITY_ORDER: QualityTier[] = ['ultra', 'high', 'medium', 'low', 'minimal'];
+const ORDER = QUALITY_ORDER;
 
 export const settingsFor = (tier: QualityTier): QualitySettings => ({ tier, ...PRESETS[tier] });
 
@@ -62,7 +67,7 @@ const MID_GPU = /iris|intel\(r\) arc|apple m\d|radeon\(tm\) graphics|radeon grap
 
 export function detectTier(): { tier: QualityTier; renderer: string } {
     const forced = new URLSearchParams(window.location.search).get('kalite');
-    const forcedMap: Record<string, QualityTier> = { yuksek: 'high', orta: 'medium', dusuk: 'low', asgari: 'minimal' };
+    const forcedMap: Record<string, QualityTier> = { ultra: 'ultra', yuksek: 'high', orta: 'medium', dusuk: 'low', asgari: 'minimal' };
     const gpu = probeGpu();
     const renderer = gpu?.renderer ?? 'bilinmiyor';
     if (forced && forcedMap[forced]) return { tier: forcedMap[forced], renderer };

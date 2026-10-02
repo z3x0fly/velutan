@@ -58,6 +58,12 @@ export const INFO_PAGES: InfoPage[] = [
                 ],
                 links: [{ label: 'Dragon flying (Sketchfab)', href: 'https://sketchfab.com/3d-models/dragon-flying-5c8c586da7ad450a8e58b56289a26739' }],
             },
+            {
+                heading: 'Velutan Ezgileri',
+                paragraphs: [
+                    'Ambiyans listesindeki parçalar YouTube oynatıcısıyla, sanatçıların kendi yüklemelerinden çalınır; haklar sahiplerine aittir: Andreas Rönnberg, Rory in early 20s, Mountain Realm, Avith Ortega, Ziggurath, Nocmar ve Devakant. Beğendiysen onları dinleyerek destek ol.',
+                ],
+            },
         ],
     },
     {

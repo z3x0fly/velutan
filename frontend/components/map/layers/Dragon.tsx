@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useAnimations, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { to3D } from '../utils/coords';
@@ -13,6 +13,10 @@ import { useHeightField } from '../useHeightField';
  * CC BY 4.0. Dokular 512px WebP'ye, mesh meshopt ile sıkıştırıldı (17.5 MB → 0.76 MB); kendi uçuş animasyonuyla.
  * Rota, dağların üstünde yükselme, dönüşte yatış ve yerdeki gölge burada. Yalnızca sürekli çizim
  * yapılan kademelerde açılır.
+ *
+ * Gölge: sahnenin güneşi ("sun") yalnızca ejderha için gölge düşürür. Gölge kamerası küçük bir kutu olarak
+ * ejderhayı takip eder; böylece kanat çırpışı ve yatış zemine gerçek siluet olarak düşer, maliyeti düşük kalır.
+ * Zemin, ağaçlar ve su (Water.tsx) bu gölgeyi alır.
  */
 
 const MODEL_URL = '/models/dragon.glb';
@@ -41,6 +45,8 @@ const SPEED = 0.55; // dünya birimi / sn (tam tur ≈ 3 dk)
 const CRUISE = 1.3; // denizden yükseklik
 const CLEARANCE = 0.75; // dağların üstünden en az bu kadar
 const WINGSPAN = 1.15; // dünya birimi (dağların yanında okunur boyut)
+const SHADOW_BOX = 1.25; // gölge kamerasının yarı genişliği (kanat açıklığını kapsar)
+const SUN_DISTANCE = 6;
 
 const tourCurve = () =>
     new THREE.CatmullRomCurve3(
@@ -57,7 +63,6 @@ const Dragon = () => {
     const field = useHeightField();
     const root = useRef<THREE.Group>(null);
     const model = useRef<THREE.Group>(null);
-    const shadow = useRef<THREE.Mesh>(null);
     const { actions } = useAnimations(animations, model);
     const curve = useMemo(tourCurve, []);
     const length = useMemo(() => curve.getLength(), [curve]);
@@ -65,6 +70,42 @@ const Dragon = () => {
     const lift = useRef(CRUISE);
     const roll = useRef(0);
     const tmp = useMemo(() => ({ p: new THREE.Vector3(), dir: new THREE.Vector3(), ahead: new THREE.Vector3() }), []);
+    // Gölge haritası Canvas'ın `shadows` ayarıyla açılır (ejderha açıkken)
+    const world = useThree((st) => st.scene);
+    const sun = useRef<{ light: THREE.DirectionalLight; dir: THREE.Vector3 } | null>(null);
+
+    // Güneşi ejderhanın gölgesi için hazırla; ejderha kalkınca eski hâline döndür
+    useEffect(() => {
+        const light = world.getObjectByName('sun') as THREE.DirectionalLight | undefined;
+        if (!light?.isDirectionalLight) return;
+        const origPos = light.position.clone();
+        const origTarget = light.target.position.clone();
+        const dir = origPos.clone().sub(origTarget).normalize();
+        light.castShadow = true;
+        const cam = light.shadow.camera;
+        cam.left = cam.bottom = -SHADOW_BOX;
+        cam.right = cam.top = SHADOW_BOX;
+        cam.near = 0.5;
+        cam.far = SUN_DISTANCE + 6;
+        cam.updateProjectionMatrix();
+        light.shadow.mapSize.set(1024, 1024);
+        light.shadow.bias = -0.0004;
+        light.shadow.normalBias = 0.02;
+        light.shadow.radius = 3;
+        const targetAdded = !light.target.parent;
+        if (targetAdded) world.add(light.target);
+        sun.current = { light, dir };
+        return () => {
+            sun.current = null;
+            light.castShadow = false;
+            light.position.copy(origPos);
+            light.target.position.copy(origTarget);
+            light.target.updateMatrixWorld();
+            if (targetAdded) world.remove(light.target);
+            light.shadow.map?.dispose();
+            light.shadow.map = null;
+        };
+    }, [world]);
 
     // Modeli ortala ve kanat açıklığına göre ölçekle (dosyanın kendi ölçeğinden bağımsız)
     const fit = useMemo(() => {
@@ -76,6 +117,7 @@ const Dragon = () => {
         scene.traverse((o) => {
             const mesh = o as THREE.Mesh;
             if (mesh.isMesh) {
+                mesh.castShadow = true;
                 mesh.frustumCulled = false; // iskelet animasyonunda sınır kutusu güncellenmez
                 const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
                 mats.forEach((m) => {
@@ -132,12 +174,12 @@ const Dragon = () => {
         r.rotateZ(roll.current);
         r.rotateX(-(want - lift.current) * 0.4);
 
-        const sh = shadow.current;
-        if (sh) {
-            const gy = Math.max(field?.sample(p.x, p.z) ?? 0, 0);
-            sh.position.set(p.x, gy + 0.02, p.z);
-            sh.rotation.z = -Math.atan2(dir.x, dir.z);
-            (sh.material as THREE.MeshBasicMaterial).opacity = Math.max(0.08, 0.3 - (y - gy) * 0.1);
+        // Güneş ejderhayı izler (yönü sabit; yalnızca gölge kutusu taşınır)
+        const s = sun.current;
+        if (s) {
+            s.light.target.position.set(p.x, y, p.z);
+            s.light.target.updateMatrixWorld();
+            s.light.position.copy(s.light.target.position).addScaledVector(s.dir, SUN_DISTANCE);
         }
     });
 
@@ -150,10 +192,6 @@ const Dragon = () => {
                     </group>
                 </group>
             </group>
-            <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]} scale={[1.4, 0.75, 1]} renderOrder={3}>
-                <circleGeometry args={[0.3, 24]} />
-                <meshBasicMaterial color="#000000" transparent opacity={0.25} depthWrite={false} />
-            </mesh>
         </group>
     );
 };

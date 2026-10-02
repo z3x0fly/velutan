@@ -162,3 +162,9 @@ html.map-picking .vl-marker,
 html.map-picking .vl-marker * {
   pointer-events: none !important;
 }
+
+/* Müzik çalarken küçük ekolayzer çubukları */
+@keyframes vlEq {
+  0%, 100% { height: 30%; }
+  50% { height: 100%; }
+}

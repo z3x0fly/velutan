@@ -6,6 +6,7 @@ import { Github, Heart, Sparkles, User, X } from 'lucide-react';
 
 const REPO_URL = 'https://github.com/z3x0fly/velutan';
 import { INFO_PAGES, InfoPage } from '../../content/hakkinda';
+import GraphicsSettings from './GraphicsSettings';
 
 const ICONS: Record<InfoPage['id'], React.ElementType> = {
     tesekkurler: Heart,
@@ -27,6 +28,7 @@ export default function InfoLinks() {
     return (
         <>
             <nav className="flex flex-wrap gap-2" aria-label="Hakkında">
+                <GraphicsSettings />
                 {INFO_PAGES.map((page) => {
                     const Icon = ICONS[page.id];
                     return (

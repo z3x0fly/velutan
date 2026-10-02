@@ -18,13 +18,13 @@ const MapLayers = React.memo(({ settings }: { settings: QualitySettings }) => (
             <planeGeometry args={[WORLD_WIDTH * 4, WORLD_HEIGHT * 4]} />
             <meshBasicMaterial color="#0d1218" />
         </mesh>
-        <Terrain textureSize={settings.textureSize} segments={settings.terrainSegments} normalMap={settings.tier === 'high' || settings.tier === 'medium'} />
+        <Terrain textureSize={settings.textureSize} segments={settings.terrainSegments} normalMap={settings.textureSize === 4096} />
         <Water animate={settings.waterAnimation} />
         {settings.treeFraction > 0 && <Forest segments={settings.terrainSegments} fraction={settings.treeFraction} wind={settings.wind} />}
         <Labels />
         {settings.clouds && <Clouds />}
         {/* Sürekli animasyon ister: yalnızca her kareyi çizen kademelerde */}
-        {settings.frameloop === 'always' && (
+        {settings.dragon && settings.frameloop === 'always' && (
             <Suspense fallback={null}>
                 <Dragon />
             </Suspense>

@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.5.2';
+    const PATCH_VERSION = '1.5.3';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,10 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'Grafik ayarları', desc: "Sol alttaki Ayarlar'dan kaliteyi kendin seç: Otomatik (varsayılan), Asgari, Düşük, Orta, Yüksek ya da yeni Ultra. Ağaç yoğunluğu, rüzgâr, bulutlar, su, ejderha ve çözünürlük tek tek ayarlanabiliyor; seçimin saklanıyor." },
+                { title: 'Yeni müzik çalar', desc: 'Velutan Ezgileri artık %0–100 ses ayarlı: sessize al, önceki/sonraki, karıştır, ileri sar, listeden şarkı seç. Paneli küçültünce müzik çalmaya devam ediyor.' },
+                { title: 'Yaşayan denizler', desc: 'Su baştan yazıldı: kıyıda sığ ve köpüklü, açıkta derin ve koyu. Büyük okyanuslar dalgalanıyor, güneş dalgalarda parlıyor, ufka doğru gökyüzünü yansıtıyor.' },
+                { title: 'Ejderhanın gerçek gölgesi', desc: 'Düz elips yerine ejderhanın kendi silueti karaya, ormana ve suya düşüyor; kanat çırpışı, süzülüşü ve dönüşteki yatışı gölgede de görünüyor.' },
                 { title: 'Haritayı tavaf eden ejderha', desc: "Olgrud'dan kalkan kızıl ejderha bütün kıtaların üstünden tur atıyor; dağlara yaklaşınca yükseliyor, dönüşlerde yatıyor, gölgesi araziyi izliyor." },
                 { title: 'Seyyah Defteri', desc: 'Haritaya kendi işaretini bırak: kamp, görev, hazine, tehlike, buluşma, not. Not düş, en yakın işarete mesafeyi gör, bağlantıyla arkadaşınla paylaş.' },
                 { title: 'Sınırlar', desc: 'Krallık ve bölge sınırları araziyle birlikte bükülerek haritada; lejanttan aç/kapa, üzerine gel, tıkla ve oraya uç.' },

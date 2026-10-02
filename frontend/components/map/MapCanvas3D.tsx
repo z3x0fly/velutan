@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Canvas, invalidate, useFrame, useThree } from '@react-three/fiber';
 import { Html, MapControls, PerformanceMonitor, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
@@ -16,7 +16,8 @@ import GroundPicker from './GroundPicker';
 import MapErrorBoundary from './MapErrorBoundary';
 import { from3D, to3D, WORLD_HEIGHT, WORLD_WIDTH } from './utils/coords';
 import { positionAtDay, type Ground, type RouteAnalysis } from './travelAnalysis';
-import { detectTier, QualitySettings, settingsFor, stepDown } from './terrain/quality';
+import { detectTier, QualitySettings, stepDown } from './terrain/quality';
+import { graphicsStore, resolveSettings } from './graphicsStore';
 import type { MapPoint, Region } from './types';
 import { cameraStore } from './cameraStore';
 import { loadStore } from './loadStore';
@@ -259,7 +260,7 @@ const SceneContents = ({
 }) => (
     <>
         <hemisphereLight args={['#fff4dc', '#3a3020', 0.9]} />
-        <directionalLight position={[-14, 22, -10]} intensity={2.1} color="#fff1d6" />
+        <directionalLight name="sun" position={[-14, 22, -10]} intensity={2.1} color="#fff1d6" />
         <directionalLight position={[12, 8, 14]} intensity={0.35} color="#9fb4d0" />
 
         <Suspense fallback={<LoadingLabel />}>
@@ -300,17 +301,49 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
     const handleControlsStart = useCallback(() => {
         if (!simulating.current) tween.current?.kill();
     }, []);
-    const [settings, setSettings] = useState<QualitySettings | null>(null);
-    const [dpr, setDpr] = useState(1);
+    // Grafik ayarları: cihaza göre otomatik ya da kullanıcının Ayarlar'dan seçtiği (graphicsStore)
+    const gfx = useSyncExternalStore(graphicsStore.subscribe, graphicsStore.get, graphicsStore.get);
+    const settings = useMemo(() => resolveSettings(gfx), [gfx]);
+    const autoMode = gfx.preset === 'auto';
+    const [declined, setDeclined] = useState(false);
+    useEffect(() => setDeclined(false), [gfx.preset]);
+    const dpr = settings ? Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, declined ? 1 : settings.maxDpr) : 1;
 
     // Kalite kademesi WebGL bağlamı açılmadan önce belirlenir (antialias/çizim döngüsü buna bağlı)
     useEffect(() => {
         const { tier, renderer } = detectTier();
-        const s = settingsFor(tier);
         console.info(`[Velutan] kalite: ${tier} (${renderer})`);
-        setSettings(s);
-        setDpr(Math.min(window.devicePixelRatio || 1, s.maxDpr));
+        graphicsStore.setDetected(tier);
     }, []);
+
+    // Kenar yumuşatma yalnızca WebGL bağlamı açılırken seçilebilir: değişince tuval yeniden kurulur.
+    // Kamera görünümü korunur (render sırasında, eski tuval sökülmeden önce kaydedilir).
+    const canvasKey = settings?.antialias ? 'aa' : 'noaa';
+    const prevKey = useRef(canvasKey);
+    const savedView = useRef<{ pos: THREE.Vector3; target: THREE.Vector3 } | null>(null);
+    if (prevKey.current !== canvasKey) {
+        prevKey.current = canvasKey;
+        if (cameraRef.current && controlsRef.current) {
+            savedView.current = { pos: cameraRef.current.position.clone(), target: controlsRef.current.target.clone() };
+        }
+    }
+    useEffect(() => {
+        const view = savedView.current;
+        if (!view) return;
+        let id = 0;
+        const restore = () => {
+            const c = controlsRef.current;
+            const cam = cameraRef.current;
+            if (!c || !cam) return void (id = requestAnimationFrame(restore));
+            cam.position.copy(view.pos);
+            c.target.copy(view.target);
+            c.update();
+            savedView.current = null;
+            invalidate();
+        };
+        id = requestAnimationFrame(restore);
+        return () => cancelAnimationFrame(id);
+    }, [canvasKey]);
 
     // FPS izleme, harita yüklemesi BİTTİKTEN 4 sn sonra başlar: dokular GPU'ya yüklenirken ve
     // shader'lar derlenirken kareler doğal olarak yavaştır; güçlü cihazı yanlışlıkla düşürmesin.
@@ -324,14 +357,16 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
     }, [!!settings, loading, monitorReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Sürekli düşük FPS: bir kademe hafiflet (doku/zemin değişmez, ağaç/animasyon/çözünürlük düşer)
+    // Yalnızca otomatik modda: kullanıcı elle seçtiyse onun kararına dokunulmaz
     const handleDecline = useCallback(() => {
-        setDpr(1);
-        setSettings((cur) => {
-            if (!cur || cur.tier === 'low' || cur.tier === 'minimal') return cur;
-            const next = settingsFor(stepDown(cur.tier));
-            console.info(`[Velutan] FPS düşük, kalite: ${next.tier}`);
-            return { ...next, textureSize: cur.textureSize, terrainSegments: cur.terrainSegments, antialias: cur.antialias };
-        });
+        const cur = graphicsStore.get();
+        if (cur.preset !== 'auto') return;
+        setDeclined(true);
+        const tier = cur.autoTier ?? cur.detected;
+        if (!tier || tier === 'low' || tier === 'minimal') return;
+        const next = stepDown(tier);
+        console.info(`[Velutan] FPS düşük, kalite: ${next}`);
+        graphicsStore.setAutoTier(next);
     }, []);
     const onSimulationEnd = useRef(props.onSimulationEnd);
     onSimulationEnd.current = props.onSimulationEnd;
@@ -458,10 +493,12 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
             <MapErrorBoundary>
                 {settings && (
                 <Canvas
+                    key={canvasKey}
                     flat
-                    dpr={Math.min(dpr, settings.maxDpr)}
+                    shadows={settings.dragon && settings.frameloop === 'always' ? 'percentage' : false}
+                    dpr={dpr}
                     frameloop={settings.frameloop}
-                    camera={{ fov: 40, near: 0.05, far: 400, position: initialCamera.toArray() }}
+                    camera={{ fov: 40, near: 0.05, far: 400, position: (savedView.current?.pos ?? initialCamera).toArray() }}
                     gl={{ antialias: settings.antialias, powerPreference: 'high-performance', stencil: false }}
                     onCreated={({ camera, gl }) => {
                         cameraRef.current = camera as THREE.PerspectiveCamera;
@@ -470,7 +507,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
                 >
                     <fog attach="fog" args={['#0d1218', 30, 120]} />
                     {/* Sürekli düşük FPS: kademe hafifler; ileri-geri zıplamasın diye en fazla 2 kez */}
-                    {settings.frameloop === 'always' && monitorReady && (
+                    {autoMode && settings.frameloop === 'always' && monitorReady && (
                         // 20 x 250 ms = 5 sn boyunca ortalama 25 FPS altı: gerçek zorlanma
                         <PerformanceMonitor bounds={() => [25, 45]} iterations={20} flipflops={3} onDecline={handleDecline} />
                     )}

@@ -324,6 +324,7 @@ const Forest = ({ segments, fraction = 1, wind = true }: ForestProps) => {
                         }}
                         args={[geometries[Number(kind) as keyof typeof geometries], material, list.length]}
                         castShadow={false}
+                        receiveShadow
                         frustumCulled
                     />
                 ),

@@ -14,6 +14,7 @@ import PatchNotesModal from './ui/modals/PatchNotesModal';
 import MapScaleBar from './ui/MapScaleBar';
 import DiceTray from './ui/DiceTray';
 import InfoLinks from './ui/InfoLinks';
+import AmbiencePlayer from './ui/AmbiencePlayer';
 import LogoBadge from './ui/LogoBadge';
 import LoadingIndicator from './ui/LoadingIndicator';
 import type { Region } from './map/types';
@@ -41,8 +42,6 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
   const [travelSpeed, setTravelSpeed] = useState('normal'); // slow, normal, fast
   const [mounted, setMounted] = useState(false);
   const [showTravelDetails, setShowTravelDetails] = useState(false);
-  const [isAmbienceMounted, setIsAmbienceMounted] = useState(false);
-  const [ambienceVolume, setAmbienceVolume] = useState(60);
   const [isSimulating, setIsSimulating] = useState(false);
   const [brushEnabled, setBrushEnabled] = useState(false);
   const mapRef = useRef<MapCanvas3DHandle>(null);
@@ -223,7 +222,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
              <div className="bg-black/90 border-2 border-amber-600/40 p-3 md:p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] md:min-w-[280px]">
                 <div className="flex justify-between items-center mb-4 border-b border-amber-600/20 pb-2">
                     <h3 className="text-amber-500 font-serif italic font-bold tracking-widest text-sm">YOLCULUK ÖZETİ</h3>
-                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.2</span>
+                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.3</span>
                 </div>
                 
                 <div className="space-y-4">
@@ -419,60 +418,9 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
         </div>
       )}
 
-      {/* 5. SPOTIFY AMBIYANS PANEL */}
+      {/* 5. AMBİYANS: Velutan Ezgileri (YouTube; ses ayarlı) */}
       <div className="fixed bottom-3 right-3 md:bottom-10 md:right-10 z-[10000] pointer-events-auto">
-        <div className="group relative flex flex-col items-end gap-3">
-            {/* Widget Container - Larger and with Header */}
-            <div className={`overflow-hidden transition-all duration-700 rounded-2xl shadow-[0_0_80px_rgba(0,0,0,0.8)] border-2 border-amber-600/30 bg-[#0a0a0a] 
-                ${isAmbienceMounted ? 'h-[520px] max-h-[70vh] w-[380px] max-w-[calc(100vw-24px)] opacity-100 mb-2' : 'h-0 w-0 opacity-0'}`}>
-               
-               <div className="p-4 border-b border-amber-600/10 flex justify-between items-center bg-black/40">
-                  <span className="text-[12px] font-black uppercase tracking-[0.3em] text-amber-500 italic">Playlist: Velutan Haritası</span>
-                  <div className="flex gap-1.5">
-                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                     <span className="text-[12px] text-green-500 font-bold uppercase">Canlı Yayın</span>
-                  </div>
-               </div>
-
-               {isAmbienceMounted && (
-                 <iframe
-                   style={{ borderRadius: '0' }}
-                   src="https://open.spotify.com/embed/playlist/3Gn9sNeFAIoi8rIHLm2QvU?utm_source=generator&theme=0"
-                   width="100%"
-                   height="450"
-                   frameBorder="0"
-                   allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                   loading="lazy"
-                 />
-               )}
-            </div>
-
-            {/* Combined Control Bar */}
-            <div className="flex items-center gap-4 animate-in slide-in-from-right duration-700">
-
-
-                {/* Toggle Button */}
-                <button 
-                    onClick={() => setIsAmbienceMounted(!isAmbienceMounted)}
-                    className={`flex items-center gap-4 p-2 md:px-8 md:py-4 rounded-full border-2 transition-all duration-500 shadow-2xl group active:scale-95
-                        ${isAmbienceMounted 
-                            ? 'bg-red-950/40 border-red-500/50 text-red-400 hover:bg-red-900/60' 
-                            : 'bg-black/90 border-amber-500/50 text-amber-500 hover:border-amber-400 hover:scale-105'}`}
-                >
-                    <div className="hidden md:flex flex-col items-end">
-                        <span className="text-[13px] font-black uppercase tracking-[0.2em]">{isAmbienceMounted ? 'AMBİYANSI SUSTUR' : 'AMBİYANSI AÇ'}</span>
-                        <span className="text-[12px] opacity-40 font-serif italic text-right">{isAmbienceMounted ? 'Sessizliğe Dön' : 'Velutan Ezgileri'}</span>
-                    </div>
-                    <div className={`p-2 rounded-full border transition-colors ${isAmbienceMounted ? 'border-red-500/30 bg-red-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}>
-                        {isAmbienceMounted ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-                        )}
-                    </div>
-                </button>
-            </div>
-        </div>
+        <AmbiencePlayer />
       </div>
     </div>
   );
