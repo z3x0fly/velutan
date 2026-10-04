@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.6.1';
+    const PATCH_VERSION = '1.6.2';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -35,7 +35,7 @@ const PatchNotesModal = () => {
             items: [
                 { title: 'Ham haritaya sadık 3D', desc: 'Zemin artık Velutan ham haritasının kendisi (kar, doku, gölge dahil). Ağaçlar yalnızca haritada ağaç çizili yerlerde; türü (çam, karlı çam, yapraklı) ve rengi çizimden. Dağlarda ağaç yok, dağ çizimleri kabartmayla birlikte duruyor.' },
                 { title: 'Araziye göre yürüme hızı', desc: "Seyahatte orman (×0,75) ve bataklık (×0,5) de sayılıyor; ikisi de haritadaki çizimden okunuyor. Dökümde Düz, Orman, Sarp, Bataklık, Dağ ve Deniz ayrı ayrı; yolda orman cezası yok, bataklıkta geçit işe yarıyor." },
-                { title: 'Daha net 360° mekânlar', desc: "Görseller velutanmap.com'daki en yüksek kaliteli hâllerinden yeniden alındı; görüntüleyici hafifçe netleştiriyor, biraz daha yakından açılıyor ve keskin ekranlarda tam çözünürlükte çiziyor." },
+                { title: 'Daha net 360° mekânlar', desc: "Görseller velutanmap.com'daki en yüksek kaliteli hâllerinden yeniden alındı. Mekânlar oradaki gibi geniş açıyla (uzaktan) açılıyor, renkler olduğu gibi; keskin ekranlarda tam çözünürlükte." },
                 { title: 'Yollar', desc: "Haritadaki noktalı yollar artık gerçek yol: Seyahat'te 'Yollardan git' açıkken (varsayılan) rota durakların arasındaki yolu izliyor. Yolda sarp arazi ve dağ geçidi daha hızlı geçiliyor; dökümde 'Yol üzerinde … km' görünüyor." },
                 { title: 'Gece ve gündüz', desc: "Seyahat simülasyonunda günler geçiyor: güneş doğuyor, batıyor, gece harita ay ışığına bürünüyor ve şehirler fener gibi yanıyor; sağ üstte kaçıncı gün ve saat. Ayarlar > Tema'dan haritayı sürekli döngüye ya da kendi saatine de bağlayabilirsin." },
                 { title: 'Temalar', desc: 'Ayarlar > Tema: ağaçlar Doğal, Gri tonlu (siyah-beyaz-gri), Sonbahar ya da Kış; harita Renkli, Siyah-beyaz ya da Sepya.' },

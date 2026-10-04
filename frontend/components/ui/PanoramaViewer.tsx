@@ -26,36 +26,10 @@ import { Hotspot, useHotspots, yawToLon } from './panorama/hotspots';
 const GUIDE_SEEN = 'velutan_savas_rehber';
 
 const MIN_FOV = 30;
-const MAX_FOV = 95;
-/** Açılış görüş açısı: biraz dar, ekrana daha çok ayrıntı düşer */
-const START_FOV = 68;
+const MAX_FOV = 110;
+/** Açılış görüş açısı: velutanmap.com'daki gibi geniş (uzaktan). Görsel az büyütülür, keskin görünür */
+const START_FOV = 100;
 
-/**
- * Panorama malzemesi: hafif keskinleştirme (unsharp mask). Görsel ekranda büyütüldüğü için yumuşar;
- * komşu dokulardan farkı biraz vurgulamak ayrıntıyı (taş, yaprak, yazı) belirginleştirir.
- */
-const makePanoMaterial = (map: THREE.Texture) =>
-    new THREE.ShaderMaterial({
-        uniforms: { map: { value: map }, texel: { value: new THREE.Vector2(1 / ((map.image as HTMLImageElement | undefined)?.width || 3840), 1 / ((map.image as HTMLImageElement | undefined)?.height || 1920)) }, amount: { value: 0.55 } },
-        vertexShader: /* glsl */ `
-            varying vec2 vUv;
-            void main() {
-                vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }`,
-        fragmentShader: /* glsl */ `
-            uniform sampler2D map;
-            uniform vec2 texel;
-            uniform float amount;
-            varying vec2 vUv;
-            void main() {
-                vec4 c = texture2D(map, vUv);
-                vec3 blur = (texture2D(map, vUv + vec2(texel.x, 0.0)).rgb + texture2D(map, vUv - vec2(texel.x, 0.0)).rgb
-                    + texture2D(map, vUv + vec2(0.0, texel.y)).rgb + texture2D(map, vUv - vec2(0.0, texel.y)).rgb) * 0.25;
-                gl_FragColor = vec4(clamp(c.rgb + (c.rgb - blur) * amount, 0.0, 1.0), 1.0);
-                #include <colorspace_fragment>
-            }`,
-    });
 
 /** Velutanmap.com'dan içe aktarılan panoramalar seed klasöründe tutulur */
 const isFromVelutanmap = (p: Panorama) => p.image.startsWith('/static/panoramas/seed/');
@@ -153,11 +127,13 @@ const Sphere = ({ url, yaw, pitch, lockRef, viewRef, onLoaded, onError }: { url:
     const geometry = useMemo(() => new THREE.SphereGeometry(50, 96, 48).scale(-1, 1, 1), []);
     useEffect(() => () => geometry.dispose(), [geometry]);
 
-    const material = useMemo(() => (texture ? makePanoMaterial(texture) : null), [texture]);
-    useEffect(() => () => material?.dispose(), [material]);
-
-    if (!texture || !material) return null;
-    return <mesh geometry={geometry} material={material} />;
+    // Görsel olduğu gibi: renk ve keskinlik velutanmap.com'daki ile aynı
+    if (!texture) return null;
+    return (
+        <mesh geometry={geometry}>
+            <meshBasicMaterial map={texture} toneMapped={false} />
+        </mesh>
+    );
 };
 
 interface PanoramaViewerProps {
