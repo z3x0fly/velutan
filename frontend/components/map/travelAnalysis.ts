@@ -1,4 +1,5 @@
 import type { HeightField } from './terrain/heightField';
+import type { CoverField } from './terrain/coverField';
 import { KM_PER_PIXEL, to3D, SCALE_FACTOR } from './utils/coords';
 import type { MapPoint } from './types';
 import { RoadGraph, roadLeg } from './roads';
@@ -8,16 +9,24 @@ import { RoadGraph, roadLeg } from './roads';
  * (düz / sarp / dağ / deniz) yükseklik ve eğimden çıkarılır. Mesafe, süre, çizgi ve simülasyon
  * hep aynı örneklerden beslenir: ekranda görünen ile hesaplanan aynı şeydir.
  */
-export type Ground = 'plain' | 'rough' | 'mountain' | 'water';
+export type Ground = 'plain' | 'forest' | 'rough' | 'marsh' | 'mountain' | 'water';
 
-export const GROUND_LABEL: Record<Ground, string> = { plain: 'Düz', rough: 'Sarp', mountain: 'Dağ', water: 'Deniz' };
-export const GROUND_COLOR: Record<Ground, string> = { plain: '#c9a24d', rough: '#a8743a', mountain: '#8a8f99', water: '#4a7fa8' };
-// Kara yolculuğunda tempo çarpanı (velutanmap.com temposuyla uyumlu: dağ 0.4, sarp 0.7)
-export const GROUND_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, rough: 0.7, mountain: 0.4 };
+export const GROUND_LABEL: Record<Ground, string> = { plain: 'Düz', forest: 'Orman', rough: 'Sarp', marsh: 'Bataklık', mountain: 'Dağ', water: 'Deniz' };
+export const GROUND_COLOR: Record<Ground, string> = {
+    plain: '#c9a24d',
+    forest: '#6b8a3e',
+    rough: '#a8743a',
+    marsh: '#5f7d72',
+    mountain: '#8a8f99',
+    water: '#4a7fa8',
+};
+// Kara yolculuğunda tempo çarpanı (velutanmap.com temposuyla uyumlu: dağ 0.4, sarp 0.7); orman ve bataklık
+// ham haritadaki çizimden (ağaç ve saz/çimen tutamları) okunur
+export const GROUND_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, forest: 0.75, rough: 0.7, marsh: 0.5, mountain: 0.4 };
 // Denizde gemiyle; yürüme temposundan bağımsız
 export const SHIP_KM_PER_DAY = 110;
 // Yolda: sarp arazide ve dağ geçidinde yol işi kolaylaştırır (ovada fark yok)
-export const ROAD_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, rough: 0.85, mountain: 0.65 };
+export const ROAD_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, forest: 1, rough: 0.85, marsh: 0.8, mountain: 0.65 };
 export const PACE_KM_PER_DAY: Record<string, number> = { slow: 30, normal: 45, fast: 60 };
 
 const STEP_WORLD = 0.04; // ≈ 5.6 km
@@ -53,7 +62,7 @@ export interface RouteAnalysis {
     roadKm: number;
 }
 
-export function classify(field: HeightField, x: number, z: number): { y: number; ground: Ground } {
+export function classify(field: HeightField, x: number, z: number, cover?: CoverField | null): { y: number; ground: Ground } {
     const h = field.sample(x, z);
     if (h < 0.015) return { y: 0, ground: 'water' };
     const gx = (field.sample(x + SLOPE_EPS, z) - field.sample(x - SLOPE_EPS, z)) / (2 * SLOPE_EPS);
@@ -61,13 +70,18 @@ export function classify(field: HeightField, x: number, z: number): { y: number;
     const slope = Math.hypot(gx, gz);
     const ground: Ground =
         h > MOUNTAIN_H || (slope > MOUNTAIN_SLOPE && h > 0.3) ? 'mountain' : h > ROUGH_H || (slope > ROUGH_SLOPE && h > 0.22) ? 'rough' : 'plain';
+    if (cover && ground !== 'mountain') {
+        const c = cover.sample(x, z);
+        if (c.marsh > 0.5) return { y: h, ground: 'marsh' };
+        if (c.forest > 0.55 && ground === 'plain') return { y: h, ground: 'forest' };
+    }
     return { y: h, ground };
 }
 
-export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string, roads?: RoadGraph | null): RouteAnalysis {
+export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string, roads?: RoadGraph | null, cover?: CoverField | null): RouteAnalysis {
     const kmPerWorld = SCALE_FACTOR * KM_PER_PIXEL;
     const landSpeed = PACE_KM_PER_DAY[pace] ?? 45;
-    const byGround: Record<Ground, number> = { plain: 0, rough: 0, mountain: 0, water: 0 };
+    const byGround: Record<Ground, number> = { plain: 0, forest: 0, rough: 0, marsh: 0, mountain: 0, water: 0 };
     const samples: RouteSample[] = [];
     const stopIndex: number[] = [];
     let day = 0;
@@ -75,7 +89,7 @@ export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string,
     let roadKm = 0;
 
     const push = (x: number, z: number, road = false) => {
-        const c = classify(field, x, z);
+        const c = classify(field, x, z, cover);
         // Yol suyun üstünden geçiyorsa köprüdür
         const ground: Ground = road && c.ground === 'water' ? 'plain' : c.ground;
         const y = c.y;
@@ -115,7 +129,7 @@ export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string,
     return { samples, km, totalDays: day, byGround, stopIndex, roadKm };
 }
 
-const RANK: Record<Ground, number> = { plain: 0, rough: 1, mountain: 2, water: 3 };
+const RANK: Record<Ground, number> = { plain: 0, forest: 1, rough: 2, marsh: 3, mountain: 4, water: 5 };
 const harder = (a: Ground, b: Ground): Ground => {
     // Kıyıda kara-deniz geçişi: denize girilmedikçe kara sayılır
     if (a === 'water' !== (b === 'water')) return a === 'water' ? b : a;

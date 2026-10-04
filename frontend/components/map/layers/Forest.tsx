@@ -50,7 +50,8 @@ function themedColor(out: THREE.Color, src: THREE.Color, seed: number, theme: Tr
     // Kış: karla örtülü, gölgede biraz yeşil
     return out.copy(src).lerp(WINTER, 0.55 + seed * 0.3);
 }
-const PAINT_MIX = 0.18;
+// Ağaç rengi büyük ölçüde ham haritadaki çizimden (soluk adaçayı, zeytin, kahve, karlı gri)
+const PAINT_MIX = 0.8;
 
 /** Geometriye yüksekliğe göre koyulaşan sabit renk ekler (sahte ortam gölgesi). */
 function colorize(geo: THREE.BufferGeometry, color: THREE.Color, top: number, aoStrength = 0.4) {

@@ -3,7 +3,7 @@
 import React from 'react';
 import { GROUND_COLOR, GROUND_LABEL, Ground, RouteAnalysis } from '../map/travelAnalysis';
 
-const ORDER: Ground[] = ['plain', 'rough', 'mountain', 'water'];
+const ORDER: Ground[] = ['plain', 'forest', 'rough', 'marsh', 'mountain', 'water'];
 
 /** Rotanın geçtiği zeminler: oranlı şerit + km dökümü (haritadaki çizgi renkleriyle aynı) */
 export default function RouteBreakdown({ route }: { route: RouteAnalysis | null }) {

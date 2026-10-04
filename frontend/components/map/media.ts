@@ -1,3 +1,5 @@
+import { ASSET_VERSION } from './generated/mapMeta';
+
 // Resmi sunucular. Ortam değişkeni verilmezse uygulama bunlara bağlanır; sunucular yalnızca resmi alan
 // adlarına CORS izni verdiği için kod başka bir yerde çalıştırılsa da harita verisi yüklenmez.
 const OFFICIAL_API = 'https://api.velutan.com.tr';
@@ -8,13 +10,17 @@ export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? OFFICIAL_API).replace
 /** Harita assetlerinin (doku, ağaç, isim verisi) kaynağı. "/" = aynı sunucu (yerel geliştirme; Next boş değeri gömmez). */
 export const ASSET_BASE = (process.env.NEXT_PUBLIC_ASSET_URL ?? OFFICIAL_SITE).replace(/\/$/, '');
 
-export const mapAsset = (file: string) => `${ASSET_BASE}/map3d/${file}`;
+/** Harita dosyası adresi; sürüm özeti eklenir (dosyalar önbellekte 7 gün kalır, yeni derleme yeni adres demek) */
+export const mapAsset = (file: string) => `${ASSET_BASE}/map3d/${file}?v=${ASSET_VERSION}`;
+
+/** /static/ görselleri için önbellek kırıcı: panoramalar aynı adla daha kaliteli hâlleriyle değiştiğinde artır */
+const MEDIA_VERSION = 2;
 
 /** Backend'deki göreli "/static/..." yollarını API adresine göre çözer; tam adresleri olduğu gibi bırakır. */
 export function mediaUrl(url?: string | null): string | undefined {
     if (!url) return undefined;
     if (/^https?:\/\//.test(url)) return url;
-    if (url.startsWith('/static/')) return `${API_URL}${url}`;
+    if (url.startsWith('/static/')) return `${API_URL}${url}${url.includes('?') ? '&' : '?'}v=${MEDIA_VERSION}`;
     return undefined; // bilinmeyen biçim: gösterme
 }
 

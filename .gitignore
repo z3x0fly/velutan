@@ -17,3 +17,4 @@ dist/
 .playwright-mcp/
 .claw_workspace/
 /backend/velutan.backup-*.db
+art/cache/

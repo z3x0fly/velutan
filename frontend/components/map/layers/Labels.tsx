@@ -11,7 +11,7 @@ import { mapAsset } from '../media';
 interface LabelItem {
     x0: number; y0: number; x1: number; y1: number; // harita pikseli
     u0: number; v0: number; u1: number; v1: number; // atlas pikseli
-    h: number; // altındaki en yüksek arazi (0..1)
+    h: number; // harflerin altındaki arazi (0..1, yüzdelik 80)
 }
 
 interface LabelData {
@@ -19,10 +19,10 @@ interface LabelData {
     items: LabelItem[];
 }
 
-// İsimler zemine yakın durur: altındaki en yüksek noktanın tamamı yerine bir kısmı kadar yükselir.
-// Derinlik testi kapalı olduğundan dağın arkasında kalsa da okunur (harita etiketi gibi).
-const HEIGHT_SHARE = 0.6;
-const LIFT = 0.02;
+// Yükseklik derlemede yalnızca HARFLERİN altındaki araziden ölçülür (yüzdelik 80): isim zemine oturur,
+// ne havada kalır ne gömülür. Derinlik testi kapalı olduğundan dağın arkasında kalsa da okunur.
+const HEIGHT_SHARE = 1;
+const LIFT = 0.025;
 
 /**
  * Haritadaki isimler (MP_7_labels): zeminden ayrı, her kelime grubu kendi altındaki en yüksek noktanın

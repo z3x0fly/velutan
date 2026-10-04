@@ -27,6 +27,35 @@ const GUIDE_SEEN = 'velutan_savas_rehber';
 
 const MIN_FOV = 30;
 const MAX_FOV = 95;
+/** Açılış görüş açısı: biraz dar, ekrana daha çok ayrıntı düşer */
+const START_FOV = 68;
+
+/**
+ * Panorama malzemesi: hafif keskinleştirme (unsharp mask). Görsel ekranda büyütüldüğü için yumuşar;
+ * komşu dokulardan farkı biraz vurgulamak ayrıntıyı (taş, yaprak, yazı) belirginleştirir.
+ */
+const makePanoMaterial = (map: THREE.Texture) =>
+    new THREE.ShaderMaterial({
+        uniforms: { map: { value: map }, texel: { value: new THREE.Vector2(1 / ((map.image as HTMLImageElement | undefined)?.width || 3840), 1 / ((map.image as HTMLImageElement | undefined)?.height || 1920)) }, amount: { value: 0.55 } },
+        vertexShader: /* glsl */ `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }`,
+        fragmentShader: /* glsl */ `
+            uniform sampler2D map;
+            uniform vec2 texel;
+            uniform float amount;
+            varying vec2 vUv;
+            void main() {
+                vec4 c = texture2D(map, vUv);
+                vec3 blur = (texture2D(map, vUv + vec2(texel.x, 0.0)).rgb + texture2D(map, vUv - vec2(texel.x, 0.0)).rgb
+                    + texture2D(map, vUv + vec2(0.0, texel.y)).rgb + texture2D(map, vUv - vec2(0.0, texel.y)).rgb) * 0.25;
+                gl_FragColor = vec4(clamp(c.rgb + (c.rgb - blur) * amount, 0.0, 1.0), 1.0);
+                #include <colorspace_fragment>
+            }`,
+    });
 
 /** Velutanmap.com'dan içe aktarılan panoramalar seed klasöründe tutulur */
 const isFromVelutanmap = (p: Panorama) => p.image.startsWith('/static/panoramas/seed/');
@@ -59,7 +88,7 @@ const Sphere = ({ url, yaw, pitch, lockRef, viewRef, onLoaded, onError }: { url:
             undefined,
             () => alive && onError(),
         );
-        view.current = { lon: yawToLon(yaw), lat: pitch, targetFov: 75 };
+        view.current = { lon: yawToLon(yaw), lat: pitch, targetFov: START_FOV };
         return () => {
             alive = false;
             loaded?.dispose();
@@ -124,12 +153,11 @@ const Sphere = ({ url, yaw, pitch, lockRef, viewRef, onLoaded, onError }: { url:
     const geometry = useMemo(() => new THREE.SphereGeometry(50, 96, 48).scale(-1, 1, 1), []);
     useEffect(() => () => geometry.dispose(), [geometry]);
 
-    if (!texture) return null;
-    return (
-        <mesh geometry={geometry}>
-            <meshBasicMaterial map={texture} toneMapped={false} />
-        </mesh>
-    );
+    const material = useMemo(() => (texture ? makePanoMaterial(texture) : null), [texture]);
+    useEffect(() => () => material?.dispose(), [material]);
+
+    if (!texture || !material) return null;
+    return <mesh geometry={geometry} material={material} />;
 };
 
 interface PanoramaViewerProps {
@@ -153,7 +181,7 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
 
     // Savaş: ızgara, token'lar, kurallar ve hamleler (bu mekâna özel, tarayıcıda saklanır)
     const ctrl = useBattleController(pano?.slug ?? '', regionSlug);
-    const viewRef = useRef<View>({ lon: 0, lat: 0, targetFov: 75 });
+    const viewRef = useRef<View>({ lon: 0, lat: 0, targetFov: START_FOV });
     // velutanmap.com'daki geçiş ve bilgi noktaları
     const hotspots = useHotspots(pano?.slug);
     const [loreSlug, setLoreSlug] = useState<string | null>(null);
@@ -255,7 +283,7 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
 
     return (
         <div className="fixed inset-0 z-[12000] bg-black pointer-events-auto select-none" role="dialog" aria-label={`${pano.title} 360° görünüm`}>
-            <Canvas flat dpr={[1, 1.75]} camera={{ fov: 75, near: 0.1, far: 200, position: [0, 0, 0] }} style={{ cursor: 'grab' }}>
+            <Canvas flat dpr={[1, 2]} camera={{ fov: START_FOV, near: 0.1, far: 200, position: [0, 0, 0] }} style={{ cursor: 'grab' }}>
                 <Sphere
                     url={url}
                     yaw={pano.initial_yaw}
