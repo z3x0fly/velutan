@@ -91,8 +91,12 @@ const Terrain = React.memo(({ textureSize: size, segments, normalMap: withNormal
                     }`,
                 )
                 .replace(
-                    '#include <map_fragment>',
-                    `#include <map_fragment>
+                    '#include <normal_fragment_maps>',
+                    `#include <normal_fragment_maps>
+                    // Yüzey eğimi (normal haritasından, pürüzsüz): 1 düz, 0 dik. Renk ışıklandırmadan önce değişir.
+                    vec3 wn = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+                    float flatness = abs(wn.y);
+                    float high = smoothstep(0.34, 0.5, vSeason.y);
                     if (uAutumn > 0.001 || uWinter > 0.001) {
                         float land = smoothstep(0.004, 0.03, vSeason.y);
                         float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
@@ -104,8 +108,26 @@ const Terrain = React.memo(({ textureSize: size, segments, normalMap: withNormal
                         diffuseColor.rgb = mix(diffuseColor.rgb, autumn, uAutumn * land * ink * 0.75);
                         // Kış: yükseldikçe kalınlaşan, gürültüyle öbeklenen kar
                         float snow = clamp(0.62 + vSeason.y * 0.9 + (n - 0.5) * 0.7, 0.0, 1.0);
-                        vec3 snowCol = vec3(0.9, 0.93, 0.97) * (0.92 + 0.08 * n);
+                        // Dik dağ yüzlerinde kar tutmaz: kaya ve dağ çizimi görünür kalır
+                        snow *= mix(1.0, smoothstep(0.5, 0.82, flatness + (n - 0.5) * 0.2), high);
+                        vec3 snowCol = vec3(0.86, 0.9, 0.95) * (0.9 + 0.1 * n);
                         diffuseColor.rgb = mix(diffuseColor.rgb, snowCol, uWinter * land * snow * mix(0.25, 0.92, ink));
+                    }
+                    {
+                        // Dağ tepeleri: dik yüzler soğuk gri kaya, zirvelerde kar örtüsü (düz yerlerde tutunur,
+                        // dik kayada kalmaz); kışın kar sınırı aşağı iner. Mürekkep çizgileri korunur.
+                        float pn = sNoise(vSeason.xz * 2.2) * 0.65 + sNoise(vSeason.xz * 7.0) * 0.35;
+                        float plum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+                        float pink = smoothstep(0.12, 0.34, plum);
+                        // Kaya: yükseklerde dik yamaçlar (kışın karın yanında koyu, keskin)
+                        float rock = high * smoothstep(0.85, 0.55, flatness);
+                        vec3 rockCol = mix(vec3(plum), diffuseColor.rgb, 0.45) * mix(vec3(0.9, 0.93, 1.0), vec3(0.52, 0.56, 0.64), uWinter);
+                        diffuseColor.rgb = mix(diffuseColor.rgb, rockCol, rock * mix(0.55, 0.8, uWinter) * mix(pink, 1.0, uWinter * 0.5));
+                        // Kar sınırı: yazın zirveler (≈0.62), kışın yamaçlar (≈0.32)
+                        float line = mix(0.62, 0.32, uWinter) + (pn - 0.5) * 0.1;
+                        float cap = smoothstep(line, line + 0.08, vSeason.y) * smoothstep(0.45, 0.8, flatness + (pn - 0.5) * 0.3);
+                        vec3 capCol = mix(vec3(0.86, 0.9, 0.96), vec3(0.97, 0.98, 1.0), pn);
+                        diffuseColor.rgb = mix(diffuseColor.rgb, capCol, cap * mix(0.35, 0.95, pink));
                     }`,
                 );
         };
