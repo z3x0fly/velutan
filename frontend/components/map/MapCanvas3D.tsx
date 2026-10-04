@@ -22,6 +22,7 @@ import type { MapPoint, Region } from './types';
 import { cameraStore } from './cameraStore';
 import { loadStore } from './loadStore';
 import DayNight from './layers/DayNight';
+import Season from './layers/Season';
 import { dayClock } from './dayStore';
 
 // Kamera: hedef etrafında küresel koordinat. Yaklaştıkça eğim artar (Runeterra tarzı).
@@ -265,6 +266,7 @@ const SceneContents = ({
         <directionalLight name="sun" position={[-14, 22, -10]} intensity={2.1} color="#fff1d6" />
         <directionalLight name="fill" position={[12, 8, 14]} intensity={0.35} color="#9fb4d0" />
         <DayNight />
+        <Season particles={settings.frameloop === 'always'} />
 
         <Suspense fallback={<LoadingLabel />}>
             <MapLayers settings={settings} />

@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
 import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HEIGHT_URL } from '../terrain/heightField';
 import { dayLight } from '../dayStore';
+import { seasonUniforms } from '../seasonStore';
 
 // Çerçevenin (overlay) içinde kalsın
 const INSET = 0.968;
@@ -136,6 +137,7 @@ const fragmentShader = /* glsl */ `
     uniform vec3 uSunDir;
     uniform vec3 uSunColor;
     uniform float uNight;
+    uniform float uWinter;
     varying vec2 vUv;
     varying vec3 vWorld;
 
@@ -212,12 +214,24 @@ const fragmentShader = /* glsl */ `
 
         // Ejderha gölgesi suya düşer
         color *= mix(0.55, 1.0, shadow);
+        // Kış: deniz soğur; kıyıdan açığa doğru buz tutar (çatlaklı, gürültüyle düzensiz kenar)
+        float ice = 0.0;
+        if (uWinter > 0.001) {
+            float lw = dot(color, vec3(0.299, 0.587, 0.114));
+            color = mix(color, mix(vec3(lw), color, 0.55) * vec3(0.9, 0.98, 1.08), uWinter * 0.6);
+            float edge = noise(p * 1.3) * 0.12 + noise(p * 4.1) * 0.06;
+            ice = smoothstep(0.3, 0.16, dLocal + edge) * uWinter;
+            float crack = smoothstep(0.035, 0.0, abs(noise(p * 9.0) - 0.5)) * 0.5 + smoothstep(0.03, 0.0, abs(noise(p * 21.0 + 3.1) - 0.5)) * 0.3;
+            vec3 iceCol = mix(vec3(0.86, 0.91, 0.95), vec3(0.62, 0.74, 0.84), crack + noise(p * 2.0) * 0.25);
+            color = mix(color, iceCol * (0.8 + 0.25 * max(dot(vec3(0.0, 1.0, 0.0), L), 0.0)), ice);
+        }
+
         // Gece: deniz koyulaşır, ay ışığıyla mavileşir
         color *= mix(vec3(1.0), vec3(0.3, 0.36, 0.52), uNight);
 
         // Kıyıda boyalı haritanın sığlığı seçilsin; açıkta su örtsün
         // Açıkta altta boyalı haritanın tekrar eden deniz dokusu görünmesin (su neredeyse örter)
-        float alpha = mix(0.38, 0.95, smoothstep(0.02, 0.5, d)) + foam * 0.3 + spec * 0.3;
+        float alpha = mix(0.38, 0.95, smoothstep(0.02, 0.5, d)) + foam * 0.3 + spec * 0.3 + ice * 0.6;
         alpha = clamp(alpha, 0.0, 1.0);
         // Kenarlara doğru yumuşak geçiş (çerçeveye taşmasın)
         vec2 e = smoothstep(vec2(0.0), vec2(0.012), vUv) * smoothstep(vec2(0.0), vec2(0.012), 1.0 - vUv);
@@ -259,6 +273,7 @@ const Water = ({ animate = true }: { animate?: boolean }) => {
                         uSunDir: { value: SUN_DIR },
                         uSunColor: { value: new THREE.Color('#fff1d6') },
                         uNight: { value: 0 },
+                        uWinter: seasonUniforms.uWinter,
                     },
                 ]),
             }),
@@ -266,6 +281,8 @@ const Water = ({ animate = true }: { animate?: boolean }) => {
     );
     // UniformsUtils.merge dokuları kopyalar; doku burada atanır
     material.uniforms.uHeight.value = height;
+    // Mevsim uniform'u ortak nesne olmalı (merge kopyalar)
+    material.uniforms.uWinter = seasonUniforms.uWinter;
 
     // Durgun kademelerde düz bir dörtgen yeter; dalgalı yüzey için sık örgü
     const geometry = useMemo(() => {

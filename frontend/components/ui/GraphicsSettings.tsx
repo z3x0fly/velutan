@@ -199,7 +199,8 @@ export default function GraphicsSettings() {
                             <div className="mt-5 mb-1 text-[11px] font-black uppercase tracking-[0.25em] text-amber-500/70">Tema</div>
                             <div className="space-y-3">
                                 <div>
-                                    <span className="block text-[13px] font-bold text-amber-100/90">Ağaç renkleri</span>
+                                    <span className="block text-[13px] font-bold text-amber-100/90">Mevsim ve ağaçlar</span>
+                                    <span className="block text-[11px] text-amber-100/40">Sonbahar ve Kış bütün haritayı değiştirir: kar, buz, yaprak.</span>
                                     <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                                         {TREE_THEMES.map((t) => (
                                             <Choice key={t.id} active={theme.trees === t.id} onClick={() => themeStore.set({ trees: t.id })}>

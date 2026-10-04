@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.6.2';
+    const PATCH_VERSION = '1.6.3';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,7 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'Kış ve sonbahar', desc: "Ayarlar > Tema'da Kış seçince bütün harita karla örtülüyor, kıyılar çatlaklı buz tutuyor, kar yağıyor; ağaçlar karlı. Sonbaharda çayırlar altın-kızıla dönüyor, ağaçlar kızıl ve sarı, yapraklar dönerek düşüyor. Geçiş yumuşak." },
                 { title: 'Ham haritaya sadık 3D', desc: 'Zemin artık Velutan ham haritasının kendisi (kar, doku, gölge dahil). Ağaçlar yalnızca haritada ağaç çizili yerlerde; türü (çam, karlı çam, yapraklı) ve rengi çizimden. Dağlarda ağaç yok, dağ çizimleri kabartmayla birlikte duruyor.' },
                 { title: 'Araziye göre yürüme hızı', desc: "Seyahatte orman (×0,75) ve bataklık (×0,5) de sayılıyor; ikisi de haritadaki çizimden okunuyor. Dökümde Düz, Orman, Sarp, Bataklık, Dağ ve Deniz ayrı ayrı; yolda orman cezası yok, bataklıkta geçit işe yarıyor." },
                 { title: 'Daha net 360° mekânlar', desc: "Görseller velutanmap.com'daki en yüksek kaliteli hâllerinden yeniden alındı. Mekânlar oradaki gibi geniş açıyla (uzaktan) açılıyor, renkler olduğu gibi; keskin ekranlarda tam çözünürlükte." },
@@ -67,6 +68,7 @@ const PatchNotesModal = () => {
             title: 'Düzeltilenler',
             icon: Wrench,
             items: [
+                { title: 'Dağlarda ve tepelerde ağaç yok', desc: 'Dağ çizimlerinin çevresinde ve tepelerde hiç ağaç kalmadı; ormanlar ovalarda ve vadilerde.' },
                 { title: 'Yer isimleri', desc: 'İsimler bazı yerlerde havada, bazı yerlerde arazinin içinde kalıyordu; artık harflerin altındaki araziye göre oturuyor.' },
                 { title: 'Dağ tepelerinde ağaç', desc: 'Dağların zirvesindeki ağaçlar kaldırıldı; ormanlar eteklerde ve vadilerde.' },
                 { title: 'Kahel ve Willburg', desc: "İki yerin haritadaki konumu velutanmap.com'daki düzeltmeye göre güncellendi." },
