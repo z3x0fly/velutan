@@ -6,6 +6,7 @@ import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
 import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HEIGHT_URL } from '../terrain/heightField';
+import { dayLight } from '../dayStore';
 
 // Çerçevenin (overlay) içinde kalsın
 const INSET = 0.968;
@@ -134,6 +135,7 @@ const fragmentShader = /* glsl */ `
     uniform vec3 uFoam;
     uniform vec3 uSunDir;
     uniform vec3 uSunColor;
+    uniform float uNight;
     varying vec2 vUv;
     varying vec3 vWorld;
 
@@ -210,6 +212,8 @@ const fragmentShader = /* glsl */ `
 
         // Ejderha gölgesi suya düşer
         color *= mix(0.55, 1.0, shadow);
+        // Gece: deniz koyulaşır, ay ışığıyla mavileşir
+        color *= mix(vec3(1.0), vec3(0.3, 0.36, 0.52), uNight);
 
         // Kıyıda boyalı haritanın sığlığı seçilsin; açıkta su örtsün
         // Açıkta altta boyalı haritanın tekrar eden deniz dokusu görünmesin (su neredeyse örter)
@@ -254,6 +258,7 @@ const Water = ({ animate = true }: { animate?: boolean }) => {
                         uFoam: { value: new THREE.Color('#f1eadb') },
                         uSunDir: { value: SUN_DIR },
                         uSunColor: { value: new THREE.Color('#fff1d6') },
+                        uNight: { value: 0 },
                     },
                 ]),
             }),
@@ -272,6 +277,10 @@ const Water = ({ animate = true }: { animate?: boolean }) => {
     useEffect(() => () => material.dispose(), [material]);
 
     useFrame((_, delta) => {
+        // Gün döngüsü: güneş/ay rengi, gökyüzü yansıması
+        material.uniforms.uSunColor.value.copy(dayLight.sun);
+        material.uniforms.uSky.value.copy(dayLight.sky);
+        material.uniforms.uNight.value = dayLight.night;
         if (!animate) return;
         material.uniforms.uTime.value += Math.min(delta, 0.1);
     });

@@ -21,6 +21,8 @@ import { graphicsStore, resolveSettings } from './graphicsStore';
 import type { MapPoint, Region } from './types';
 import { cameraStore } from './cameraStore';
 import { loadStore } from './loadStore';
+import DayNight from './layers/DayNight';
+import { dayClock } from './dayStore';
 
 // Kamera: hedef etrafında küresel koordinat. Yaklaştıkça eğim artar (Runeterra tarzı).
 const MIN_DIST = 2.2;
@@ -259,9 +261,10 @@ const SceneContents = ({
     simGroundRef: React.MutableRefObject<Ground>;
 }) => (
     <>
-        <hemisphereLight args={['#fff4dc', '#3a3020', 0.9]} />
+        <hemisphereLight name="hemi" args={['#fff4dc', '#3a3020', 0.9]} />
         <directionalLight name="sun" position={[-14, 22, -10]} intensity={2.1} color="#fff1d6" />
-        <directionalLight position={[12, 8, 14]} intensity={0.35} color="#9fb4d0" />
+        <directionalLight name="fill" position={[12, 8, 14]} intensity={0.35} color="#9fb4d0" />
+        <DayNight />
 
         <Suspense fallback={<LoadingLabel />}>
             <MapLayers settings={settings} />
@@ -444,6 +447,9 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
             // Oynatma süresi rotadaki GÜNLERE bölünür: dağ geçidinde yavaşlar, ovada ve denizde açılır
             const state = { day: 0 };
             let cursor = 0;
+            // Gün döngüsü yolculuğun gününü izler (sabah 6'da yola çıkılır)
+            dayClock.simDay = 0;
+            dayClock.secPerDay = Math.max(3, durationSeconds) / route.totalDays;
             const c = controlsRef.current;
             const cam = cameraRef.current;
             const start = new THREE.Vector3(first.x, 0, first.z);
@@ -455,6 +461,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
                 ease: 'none',
                 delay: moveFirst ? 1.05 : 0.2,
                 onUpdate: () => {
+                    dayClock.simDay = state.day;
                     const p = positionAtDay(route, state.day, cursor);
                     cursor = p.i;
                     simPosRef.current.set(p.x, p.y, p.z);
@@ -469,6 +476,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
                     invalidate();
                 },
                 onComplete: () => {
+                    dayClock.simDay = null;
                     simulating.current = false;
                     setSimActive(false);
                     tween.current = null;
@@ -477,6 +485,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
             });
         },
         stopSimulation: () => {
+            dayClock.simDay = null;
             simulating.current = false;
             tween.current?.kill();
             tween.current = null;

@@ -25,6 +25,8 @@ import RouteBreakdown from './ui/RouteBreakdown';
 import SharedPinsPrompt from './ui/SharedPinsPrompt';
 import { pinStore } from './map/pinStore';
 import { sessionStore } from './ui/panorama/session';
+import { TONE_FILTER, useTheme } from './map/themeStore';
+import { DayClockBadge, NightOverlay } from './ui/DayClock';
 
 
 
@@ -46,6 +48,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
   const [isSimulating, setIsSimulating] = useState(false);
   const [brushEnabled, setBrushEnabled] = useState(false);
   const mapRef = useRef<MapCanvas3DHandle>(null);
+  const theme = useTheme();
 
   // Easter egg listesi açılışta değil, pusulaya ilk tıklanınca çekilir (ilk yükü hafifletir)
   const easterEggLoaded = useRef(false);
@@ -193,7 +196,18 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
 
   // Mesafe & süre: rota yükselti haritası üzerinden örneklenir; düz/sarp/dağ/deniz otomatik ayrılır
   // (ölçek: velutanmap.com, harita genişliği 5431 km; tempo: yavaş 30 / normal 45 / hızlı 60 km/gün)
-  const route = useRouteAnalysis(travelPath, travelSpeed);
+  // Yollardan git: duraklar arası, yol varsa yol üzerinden (tercih saklanır)
+  const [followRoads, setFollowRoads] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('velutan_yollar') === '0') setFollowRoads(false);
+    } catch { /* yoksay */ }
+  }, []);
+  const toggleRoads = (v: boolean) => {
+    setFollowRoads(v);
+    try { localStorage.setItem('velutan_yollar', v ? '1' : '0'); } catch { /* yoksay */ }
+  };
+  const route = useRouteAnalysis(travelPath, travelSpeed, followRoads);
   const calculateStats = () => {
     const totalDays = route?.totalDays ?? 0;
     return { km: Math.round(route?.km ?? 0), ...formatDuration(totalDays), totalDays };
@@ -208,7 +222,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
       <LoadingIndicator />
 
       {/* 1. MAP LAYER: Harita en dipte (Hata giderme: Hydration guard) */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0" style={theme.tone === 'renkli' ? undefined : { filter: TONE_FILTER[theme.tone] }}>
         {mounted && (
           <MapCanvas3D
             apiRef={mapRef}
@@ -225,6 +239,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
 
       {/* 2. ATMOSPHERE LAYER: Haritanın üstünde ama UI'ın altında görsel efektler */}
       <div className="absolute inset-0 z-10 pointer-events-none">
+        <NightOverlay />
         {/* Vintage Vignette - Warmer tone */}
         <div
           className="absolute inset-0"
@@ -247,7 +262,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
              <div className="bg-black/90 border-2 border-amber-600/40 p-3 md:p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] md:min-w-[280px]">
                 <div className="flex justify-between items-center mb-4 border-b border-amber-600/20 pb-2">
                     <h3 className="text-amber-500 font-serif italic font-bold tracking-widest text-sm">YOLCULUK ÖZETİ</h3>
-                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.5.8</span>
+                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.6.0</span>
                 </div>
                 
                 <div className="space-y-4">
@@ -348,14 +363,16 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
             travelSpeed={travelSpeed}
             setTravelSpeed={setTravelSpeed}
             route={route}
+            followRoads={followRoads}
+            setFollowRoads={toggleRoads}
             isSimulating={isSimulating}
             showBrush={brushEnabled}
             startSimulation={() => {
               if (travelPath.length < 2) return;
               setIsSimulating(true);
-              // 1 gün yolculuk ≈ 2 sn animasyon (4-60 sn arası)
+              // 1 gün yolculuk ≈ 3,5 sn animasyon (6-90 sn arası): gece ve gündüz seçilebilsin
               if (!route) return;
-              mapRef.current?.startSimulation(route, Math.min(60, Math.max(4, stats.totalDays * 2)));
+              mapRef.current?.startSimulation(route, Math.min(90, Math.max(6, stats.totalDays * 3.5)));
             }}
             stopSimulation={() => {
               setIsSimulating(false);
@@ -376,6 +393,11 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
                 {spamFeedback}
             </div>
           )}
+        </div>
+
+        {/* Sağ üst, pusulanın altı: gün döngüsü saati */}
+        <div className="absolute right-3 top-[92px] md:right-8 md:top-[156px] pointer-events-auto">
+          <DayClockBadge />
         </div>
 
         {/* BOTTOM LEFT: Map Scale Bar & Dice Roller */}

@@ -1,6 +1,7 @@
 import type { HeightField } from './terrain/heightField';
 import { KM_PER_PIXEL, to3D, SCALE_FACTOR } from './utils/coords';
 import type { MapPoint } from './types';
+import { RoadGraph, roadLeg } from './roads';
 
 /**
  * Rota analizi: rota ~5 km'lik adımlarla yükselti haritası üzerinden örneklenir; her adımın zemini
@@ -15,6 +16,8 @@ export const GROUND_COLOR: Record<Ground, string> = { plain: '#c9a24d', rough: '
 export const GROUND_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, rough: 0.7, mountain: 0.4 };
 // Denizde gemiyle; yürüme temposundan bağımsız
 export const SHIP_KM_PER_DAY = 110;
+// Yolda: sarp arazide ve dağ geçidinde yol işi kolaylaştırır (ovada fark yok)
+export const ROAD_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, rough: 0.85, mountain: 0.65 };
 export const PACE_KM_PER_DAY: Record<string, number> = { slow: 30, normal: 45, fast: 60 };
 
 const STEP_WORLD = 0.04; // ≈ 5.6 km
@@ -35,6 +38,8 @@ export interface RouteSample {
     /** Rotanın başından bu örneğe kadar gün */
     day: number;
     km: number;
+    /** Bu örneğe yol üzerinden varıldı */
+    road?: boolean;
 }
 
 export interface RouteAnalysis {
@@ -44,6 +49,8 @@ export interface RouteAnalysis {
     byGround: Record<Ground, number>; // km
     /** Kullanıcı duraklarının samples içindeki sırası */
     stopIndex: number[];
+    /** Yol üzerinde gidilen km */
+    roadKm: number;
 }
 
 export function classify(field: HeightField, x: number, z: number): { y: number; ground: Ground } {
@@ -57,7 +64,7 @@ export function classify(field: HeightField, x: number, z: number): { y: number;
     return { y: h, ground };
 }
 
-export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string): RouteAnalysis {
+export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string, roads?: RoadGraph | null): RouteAnalysis {
     const kmPerWorld = SCALE_FACTOR * KM_PER_PIXEL;
     const landSpeed = PACE_KM_PER_DAY[pace] ?? 45;
     const byGround: Record<Ground, number> = { plain: 0, rough: 0, mountain: 0, water: 0 };
@@ -65,9 +72,13 @@ export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string)
     const stopIndex: number[] = [];
     let day = 0;
     let km = 0;
+    let roadKm = 0;
 
-    const push = (x: number, z: number) => {
-        const { y, ground } = classify(field, x, z);
+    const push = (x: number, z: number, road = false) => {
+        const c = classify(field, x, z);
+        // Yol suyun üstünden geçiyorsa köprüdür
+        const ground: Ground = road && c.ground === 'water' ? 'plain' : c.ground;
+        const y = c.y;
         const prev = samples[samples.length - 1];
         if (prev) {
             const d = Math.hypot(x - prev.x, z - prev.z) * kmPerWorld;
@@ -75,22 +86,33 @@ export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string)
             const g = harder(prev.ground, ground);
             byGround[g] += d;
             km += d;
-            day += d / (g === 'water' ? SHIP_KM_PER_DAY : landSpeed * GROUND_MULT[g]);
+            if (road) roadKm += d;
+            day += d / (g === 'water' ? SHIP_KM_PER_DAY : landSpeed * (road ? ROAD_MULT[g] : GROUND_MULT[g]));
         }
-        samples.push({ x, z, y, ground, day, km });
+        samples.push({ x, z, y, ground, day, km, road });
+    };
+    const segment = (from: MapPoint, to: MapPoint, road: boolean) => {
+        const [x, , z] = to3D(to.x, to.y);
+        const [px, , pz] = to3D(from.x, from.y);
+        const n = Math.max(1, Math.ceil(Math.hypot(x - px, z - pz) / STEP_WORLD));
+        for (let k = 1; k < n; k++) push(px + ((x - px) * k) / n, pz + ((z - pz) * k) / n, road);
+        push(x, z, road);
     };
 
     path.forEach((p, i) => {
-        const [x, , z] = to3D(p.x, p.y);
-        if (i > 0) {
-            const [px, , pz] = to3D(path[i - 1].x, path[i - 1].y);
-            const n = Math.max(1, Math.ceil(Math.hypot(x - px, z - pz) / STEP_WORLD));
-            for (let k = 1; k < n; k++) push(px + ((x - px) * k) / n, pz + ((z - pz) * k) / n);
+        if (i === 0) {
+            const [x, , z] = to3D(p.x, p.y);
+            push(x, z);
+        } else {
+            // Yol varsa: durak -> yol -> yol boyunca -> durak
+            const leg = roads ? roadLeg(roads, path[i - 1], p) : null;
+            let from = path[i - 1];
+            if (leg) for (const q of leg) segment(from, q, q.road), (from = q);
+            segment(from, p, false);
         }
-        push(x, z);
         stopIndex.push(samples.length - 1);
     });
-    return { samples, km, totalDays: day, byGround, stopIndex };
+    return { samples, km, totalDays: day, byGround, stopIndex, roadKm };
 }
 
 const RANK: Record<Ground, number> = { plain: 0, rough: 1, mountain: 2, water: 3 };

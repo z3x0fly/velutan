@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.5.8';
+    const PATCH_VERSION = '1.6.0';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,9 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'Yollar', desc: "Haritadaki noktalı yollar artık gerçek yol: Seyahat'te 'Yollardan git' açıkken (varsayılan) rota durakların arasındaki yolu izliyor. Yolda sarp arazi ve dağ geçidi daha hızlı geçiliyor; dökümde 'Yol üzerinde … km' görünüyor." },
+                { title: 'Gece ve gündüz', desc: "Seyahat simülasyonunda günler geçiyor: güneş doğuyor, batıyor, gece harita ay ışığına bürünüyor ve şehirler fener gibi yanıyor; sağ üstte kaçıncı gün ve saat. Ayarlar > Tema'dan haritayı sürekli döngüye ya da kendi saatine de bağlayabilirsin." },
+                { title: 'Temalar', desc: 'Ayarlar > Tema: ağaçlar Doğal, Gri tonlu (siyah-beyaz-gri), Sonbahar ya da Kış; harita Renkli, Siyah-beyaz ya da Sepya.' },
                 { title: '360° mekânlarda gezinti', desc: "Street View gibi: mekândaki oklu halkaya bas, bakış oraya dönüp yaklaşır ve bağlı mekâna geçersin (ör. Kahel: Harabeler → Koridor → Salon → Malphasius). 'i' halkası wiki kaydını açar: karakter, yer, hikâye; metindeki bağlantılar ve ilgili kayıtlar aynı pencerede açılır. Noktalar ve kayıtlar velutanmap.com'dan canlı geliyor, orada eklendikçe burada da görünür." },
                 { title: 'Doğru bakış yönü', desc: "360° mekânlar artık velutanmap.com'daki gibi görselin ortasından, asıl sahneye bakarak açılıyor." },
                 { title: 'Sade arayüz', desc: "Harita artık arayüzün altında kalmıyor: Seyahat, Lejant ve Defter sol üstte ince bir çubuk, bir sekmeye basınca açılıyor. Teşekkürler, Kim Yaptı?, Meraklısına ve GitHub tek 'Hakkında' menüsünde; zar, ayarlar, müzik, pusula ve logo küçüldü." },
@@ -61,6 +64,8 @@ const PatchNotesModal = () => {
             title: 'Düzeltilenler',
             icon: Wrench,
             items: [
+                { title: 'Dağ tepelerinde ağaç', desc: 'Dağların zirvesindeki ağaçlar kaldırıldı; ormanlar eteklerde ve vadilerde.' },
+                { title: 'Kahel ve Willburg', desc: "İki yerin haritadaki konumu velutanmap.com'daki düzeltmeye göre güncellendi." },
                 { title: 'Denizde tekrar eden desen', desc: 'Okyanusta aynı desen kare kare tekrar ediyordu. Dalgalar artık gürültüyle bükülüyor; yönleri ve boyları yerden yere değişiyor, köpük ve parıltı serpiştiriliyor. Altta tekrar eden deniz dokusu da örtüldü.' },
                 { title: 'Savaş günlüğü kapanınca çökme', desc: 'Günlüğü çarpıyla kapatınca sayfa hata veriyordu; düzeltildi.' },
                 { title: 'Havada kalan ağaçlar', desc: 'Tepelerde ve yamaçlarda bazı ağaçlar zeminin biraz üstünde asılı duruyordu; artık hepsi çizilen zemine tam oturuyor, düşük kalitede de.' },

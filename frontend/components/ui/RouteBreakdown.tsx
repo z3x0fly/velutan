@@ -27,6 +27,13 @@ export default function RouteBreakdown({ route }: { route: RouteAnalysis | null 
                     </div>
                 ))}
             </div>
+            {route.roadKm >= 1 && (
+                <div className="flex items-center gap-2 text-[12px]">
+                    <span className="h-0 w-2.5 shrink-0 border-t-2 border-dotted border-amber-200/80" />
+                    <span className="text-zinc-400 font-serif">Yol üzerinde</span>
+                    <span className="ml-auto font-bold text-amber-100/80 tabular-nums">{Math.round(route.roadKm)} km</span>
+                </div>
+            )}
         </div>
     );
 }

@@ -5,6 +5,36 @@ import { createPortal } from 'react-dom';
 import { RotateCcw, Settings2, X } from 'lucide-react';
 import { graphicsStore, GraphicsPreset, ResolutionPref, resolveSettings } from '../map/graphicsStore';
 import type { QualityTier } from '../map/terrain/quality';
+import { DayCycle, MapTone, themeStore, TreeTheme, useTheme } from '../map/themeStore';
+
+const TREE_THEMES: { id: TreeTheme; label: string; swatch: string }[] = [
+    { id: 'dogal', label: 'Doğal', swatch: 'linear-gradient(135deg,#2f6b3a,#6a9a34)' },
+    { id: 'gri', label: 'Gri tonlu', swatch: 'linear-gradient(135deg,#111,#888,#eee)' },
+    { id: 'sonbahar', label: 'Sonbahar', swatch: 'linear-gradient(135deg,#9c3b22,#d0802a,#e0a33a)' },
+    { id: 'kis', label: 'Kış', swatch: 'linear-gradient(135deg,#9fb3b0,#e6eef0)' },
+];
+const TONES: { id: MapTone; label: string }[] = [
+    { id: 'renkli', label: 'Renkli' },
+    { id: 'gravur', label: 'Siyah-beyaz' },
+    { id: 'sepya', label: 'Sepya' },
+];
+const DAYS: { id: DayCycle; label: string; desc: string }[] = [
+    { id: 'kapali', label: 'Kapalı', desc: 'Hep gündüz. Seyahat simülasyonunda yine de günler geçer.' },
+    { id: 'dongu', label: 'Döngü', desc: 'Dört dakikada bir gün: sabah, akşam, gece.' },
+    { id: 'saat', label: 'Gerçek saat', desc: 'Senin saatin: gece açarsan Velutan da gecedir.' },
+];
+
+const Choice = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
+    <button
+        onClick={onClick}
+        aria-pressed={active}
+        className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[12px] font-bold transition-colors ${
+            active ? 'border-amber-500 bg-amber-600/25 text-amber-200' : 'border-amber-600/20 bg-black/40 text-amber-500/70 hover:border-amber-500/50'
+        }`}
+    >
+        {children}
+    </button>
+);
 
 const TIER_LABEL: Record<QualityTier, string> = { ultra: 'Ultra', high: 'Yüksek', medium: 'Orta', low: 'Düşük', minimal: 'Asgari' };
 
@@ -45,6 +75,7 @@ const Toggle = ({ label, hint, on, onChange }: { label: string; hint?: string; o
 export default function GraphicsSettings() {
     const [open, setOpen] = useState(false);
     const gfx = useSyncExternalStore(graphicsStore.subscribe, graphicsStore.get, graphicsStore.get);
+    const theme = useTheme();
     const current = resolveSettings(gfx);
     const custom = Object.keys(gfx.overrides).length > 0;
 
@@ -77,7 +108,7 @@ export default function GraphicsSettings() {
             <button
                 onClick={() => setOpen(true)}
                 aria-label="Ayarlar"
-                title="Ayarlar: grafik kalitesi"
+                title="Ayarlar: grafik ve tema"
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-600/30 bg-black/70 text-amber-500/80 transition-colors hover:border-amber-500 hover:text-amber-400"
             >
                 <Settings2 size={16} />
@@ -90,7 +121,7 @@ export default function GraphicsSettings() {
                             className="relative max-h-[88dvh] w-full max-w-md overflow-y-auto custom-scrollbar rounded-2xl border-2 border-amber-600/30 bg-[#120c06] p-5 shadow-[0_0_100px_rgba(0,0,0,1)] md:p-7"
                             onClick={(e) => e.stopPropagation()}
                             role="dialog"
-                            aria-label="Grafik ayarları"
+                            aria-label="Grafik ve tema ayarları"
                         >
                             <button onClick={() => setOpen(false)} aria-label="Kapat" className="absolute right-4 top-4 text-amber-500 hover:text-white">
                                 <X size={22} />
@@ -162,6 +193,41 @@ export default function GraphicsSettings() {
                                             </button>
                                         ))}
                                     </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 mb-1 text-[11px] font-black uppercase tracking-[0.25em] text-amber-500/70">Tema</div>
+                            <div className="space-y-3">
+                                <div>
+                                    <span className="block text-[13px] font-bold text-amber-100/90">Ağaç renkleri</span>
+                                    <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                                        {TREE_THEMES.map((t) => (
+                                            <Choice key={t.id} active={theme.trees === t.id} onClick={() => themeStore.set({ trees: t.id })}>
+                                                <span className="h-3 w-3 shrink-0 rounded-full border border-white/20" style={{ background: t.swatch }} /> {t.label}
+                                            </Choice>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span className="block text-[13px] font-bold text-amber-100/90">Harita tonu</span>
+                                    <div className="mt-2 grid grid-cols-3 gap-1.5">
+                                        {TONES.map((t) => (
+                                            <Choice key={t.id} active={theme.tone === t.id} onClick={() => themeStore.set({ tone: t.id })}>
+                                                {t.label}
+                                            </Choice>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span className="block text-[13px] font-bold text-amber-100/90">Gece ve gündüz</span>
+                                    <div className="mt-2 grid grid-cols-3 gap-1.5">
+                                        {DAYS.map((t) => (
+                                            <Choice key={t.id} active={theme.day === t.id} onClick={() => themeStore.set({ day: t.id })}>
+                                                {t.label}
+                                            </Choice>
+                                        ))}
+                                    </div>
+                                    <p className="mt-1.5 text-[12px] italic text-amber-100/50">{DAYS.find((x) => x.id === theme.day)?.desc}</p>
                                 </div>
                             </div>
 

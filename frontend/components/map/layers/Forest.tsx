@@ -5,6 +5,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { TREE_STRIDE } from '../generated/mapMeta';
+import { TreeTheme, useTheme } from '../themeStore';
 import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HeightField, loadHeightField } from '../terrain/heightField';
 import { to3D, WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
 import { mapAsset } from '../media';
@@ -29,6 +30,26 @@ const KIND_COLOR: Record<TreeKind, THREE.Color> = {
 };
 // Sonbahar ağaçlarının bir kısmı kızıl, bir kısmı altın sarısı
 const AUTUMN_ALT = new THREE.Color('#b8452a');
+
+/** Temaya göre ağaç rengi (asıl renk + ağaca özgü tohumdan) */
+const AUTUMN_SET = ['#d0802a', '#b8452a', '#e0a33a', '#9c3b22', '#c76a28'].map((c) => new THREE.Color(c));
+const WINTER = new THREE.Color('#e6eef0');
+const hsl = { h: 0, s: 0, l: 0 };
+function themedColor(out: THREE.Color, src: THREE.Color, seed: number, theme: TreeTheme) {
+    if (theme === 'dogal') return out.copy(src);
+    if (theme === 'gri') {
+        // Siyah, beyaz ve gri: parlaklık korunur, karşıtlık artar (çizim gibi)
+        const l = src.r * 0.3 + src.g * 0.59 + src.b * 0.11;
+        const v = THREE.MathUtils.clamp((l - 0.12) * 1.9 + (seed - 0.5) * 0.18, 0.04, 0.92);
+        return out.setRGB(v, v, v);
+    }
+    if (theme === 'sonbahar') {
+        src.getHSL(hsl);
+        return out.copy(AUTUMN_SET[Math.floor(seed * AUTUMN_SET.length) % AUTUMN_SET.length]).offsetHSL(0, 0, (hsl.l - 0.35) * 0.4);
+    }
+    // Kış: karla örtülü, gölgede biraz yeşil
+    return out.copy(src).lerp(WINTER, 0.55 + seed * 0.3);
+}
 const PAINT_MIX = 0.18;
 
 /** Geometriye yüksekliğe göre koyulaşan sabit renk ekler (sahte ortam gölgesi). */
@@ -148,6 +169,7 @@ interface TreeRecord {
     group: number;
     matrix: THREE.Matrix4;
     color: THREE.Color;
+    seed: number;
 }
 
 /** fraction: çizilecek ağaç oranı; elenenler hiç işlenmez. Ana iş parçacığı her 2000 kayıtta serbest bırakılır. */
@@ -182,7 +204,7 @@ async function loadTrees(fraction: number, bushes: boolean, segments: [number, n
         // Ağaçtan ağaca ton ve parlaklık farkı: ormanlar tek renk bir halı gibi durmasın
         color.offsetHSL((seed - 0.5) * 0.05, (scale - 0.5) * 0.12, (seed - 0.5) * 0.1);
         const variant = kind === TreeKind.SnowPine ? 0 : (i * 7 + Math.floor(seed * 10)) % 2;
-        out.push({ group: kind * 2 + variant, matrix: obj.matrix.clone(), color });
+        out.push({ group: kind * 2 + variant, matrix: obj.matrix.clone(), color, seed });
 
         // Çalı: yoğun kademelerde her üç ağaçtan birinin dibine
         if (bushes && kind !== TreeKind.SnowPine && i % 3 === 0) {
@@ -194,7 +216,7 @@ async function loadTrees(fraction: number, bushes: boolean, segments: [number, n
             obj.scale.setScalar(s * (0.75 + scale * 0.4));
             obj.updateMatrix();
             const bushColor = color.clone().offsetHSL(0.02, 0.05, -0.06);
-            out.push({ group: 8, matrix: obj.matrix.clone(), color: bushColor });
+            out.push({ group: 8, matrix: obj.matrix.clone(), color: bushColor, seed });
         }
     }
     return out;
@@ -246,6 +268,7 @@ const Forest = ({ segments, fraction = 1, wind = true }: ForestProps) => {
     // Rüzgâr yoksa (yalnızca değişince çizilen kademe) ağaçlar doğrudan tam boy başlar
     const uniforms = useMemo(() => ({ uTime: { value: 0 }, uGrow: { value: wind ? 0 : 1 } }), []); // eslint-disable-line react-hooks/exhaustive-deps
     const meshes = useRef<(THREE.InstancedMesh | null)[]>([]);
+    const treeTheme = useTheme().trees;
 
     useEffect(() => {
         let alive = true;
@@ -285,16 +308,17 @@ const Forest = ({ segments, fraction = 1, wind = true }: ForestProps) => {
         Object.entries(groups).forEach(([kind, list]) => {
             const mesh = meshes.current[Number(kind)];
             if (!mesh) return;
+            const c = new THREE.Color();
             list.forEach((t, i) => {
                 mesh.setMatrixAt(i, t.matrix);
-                mesh.setColorAt(i, t.color);
+                mesh.setColorAt(i, themedColor(c, t.color, t.seed, treeTheme));
             });
             mesh.instanceMatrix.needsUpdate = true;
             if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
             mesh.computeBoundingSphere();
         });
         invalidate();
-    }, [groups, invalidate]);
+    }, [groups, invalidate, treeTheme]);
 
     useEffect(
         () => () => {

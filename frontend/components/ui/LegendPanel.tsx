@@ -20,6 +20,8 @@ interface LegendPanelProps {
   travelSpeed: string;
   setTravelSpeed: (val: string) => void;
   route: RouteAnalysis | null;
+  followRoads: boolean;
+  setFollowRoads: (v: boolean) => void;
   startSimulation: () => void;
   stopSimulation: () => void;
   isSimulating: boolean;
@@ -36,6 +38,8 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
     travelSpeed,
     setTravelSpeed,
     route,
+    followRoads,
+    setFollowRoads,
     startSimulation,
     stopSimulation,
     isSimulating,
@@ -177,6 +181,22 @@ const LegendPanel: React.FC<LegendPanelProps> = ({
                       className={`w-12 h-6 rounded-full transition-all relative ${isTravelMode ? 'bg-amber-600' : 'bg-zinc-800'}`}
                     >
                         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isTravelMode ? 'left-7' : 'left-1'}`} />
+                    </button>
+                </div>
+
+                <div className="flex justify-between items-center gap-3">
+                    <span className="flex flex-col">
+                      <span className="text-[13px] font-black uppercase text-zinc-400">Yollardan git</span>
+                      <span className="text-[11px] text-zinc-500">Duraklar yola yakınsa rota yolu izler</span>
+                    </span>
+                    <button
+                      onClick={() => setFollowRoads(!followRoads)}
+                      role="switch"
+                      aria-checked={followRoads}
+                      aria-label="Yollardan git"
+                      className={`w-12 h-6 shrink-0 rounded-full transition-all relative ${followRoads ? 'bg-amber-600' : 'bg-zinc-800'}`}
+                    >
+                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${followRoads ? 'left-7' : 'left-1'}`} />
                     </button>
                 </div>
 

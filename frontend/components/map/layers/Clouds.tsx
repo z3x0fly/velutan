@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { dayLight } from '../dayStore';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
 
 const CLOUD_COUNT = 18;
@@ -60,6 +61,8 @@ const Clouds = () => {
 
     useFrame(({ camera }, delta) => {
         const d = Math.min(delta, 0.1);
+        // Gece bulutlar kararır
+        material.color.setScalar(1 - dayLight.night * 0.7);
         // Kamera yükseldikçe görünür (y 22 -> 0, y 38 -> tam)
         const target = THREE.MathUtils.clamp((camera.position.y - 22) / 16, 0, 1) * 0.45;
         material.opacity += (target - material.opacity) * 0.05;
