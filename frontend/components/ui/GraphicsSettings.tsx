@@ -5,7 +5,12 @@ import { createPortal } from 'react-dom';
 import { RotateCcw, Settings2, X } from 'lucide-react';
 import { graphicsStore, GraphicsPreset, ResolutionPref, resolveSettings } from '../map/graphicsStore';
 import type { QualityTier } from '../map/terrain/quality';
-import { DayCycle, MapTone, themeStore, TreeTheme, useTheme } from '../map/themeStore';
+import { DayCycle, MapTone, themeStore, TreeTheme, useTheme, WorldShape } from '../map/themeStore';
+
+const WORLDS: { id: WorldShape; label: string }[] = [
+    { id: 'duz', label: 'Düz harita' },
+    { id: 'kure', label: 'Küre (gezegen)' },
+];
 
 const TREE_THEMES: { id: TreeTheme; label: string; swatch: string }[] = [
     { id: 'dogal', label: 'Doğal', swatch: 'linear-gradient(135deg,#2f6b3a,#6a9a34)' },
@@ -205,6 +210,17 @@ export default function GraphicsSettings() {
                                         {TREE_THEMES.map((t) => (
                                             <Choice key={t.id} active={theme.trees === t.id} onClick={() => themeStore.set({ trees: t.id })}>
                                                 <span className="h-3 w-3 shrink-0 rounded-full border border-white/20" style={{ background: t.swatch }} /> {t.label}
+                                            </Choice>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span className="block text-[13px] font-bold text-amber-100/90">Dünyanın şekli</span>
+                                    <span className="block text-[11px] text-amber-100/40">Küre: Velutan gezegeninde gerçek enlem ve boylamda; güneş, ay ve gece-gündüz gerçek gökyüzü mekaniğiyle.</span>
+                                    <div className="mt-2 grid grid-cols-2 gap-1.5">
+                                        {WORLDS.map((t) => (
+                                            <Choice key={t.id} active={theme.world === t.id} onClick={() => themeStore.set({ world: t.id })}>
+                                                {t.label}
                                             </Choice>
                                         ))}
                                     </div>

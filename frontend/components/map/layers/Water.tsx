@@ -242,7 +242,6 @@ const fragmentShader = /* glsl */ `
     }
 `;
 
-const SUN_DIR = new THREE.Vector3(-14, 22, -10).normalize(); // MapCanvas3D'deki "sun" ile aynı yön
 
 const Water = ({ animate = true }: { animate?: boolean }) => {
     const height = useTexture(HEIGHT_URL);
@@ -270,7 +269,7 @@ const Water = ({ animate = true }: { animate?: boolean }) => {
                         uShallow: { value: new THREE.Color('#5c949a') },
                         uSky: { value: new THREE.Color('#b9c9d6') },
                         uFoam: { value: new THREE.Color('#f1eadb') },
-                        uSunDir: { value: SUN_DIR },
+                        uSunDir: { value: dayLight.sunDir.clone() },
                         uSunColor: { value: new THREE.Color('#fff1d6') },
                         uNight: { value: 0 },
                         uWinter: seasonUniforms.uWinter,
@@ -296,6 +295,7 @@ const Water = ({ animate = true }: { animate?: boolean }) => {
     useFrame((_, delta) => {
         // Gün döngüsü: güneş/ay rengi, gökyüzü yansıması
         material.uniforms.uSunColor.value.copy(dayLight.sun);
+        material.uniforms.uSunDir.value.copy(dayLight.sunDir);
         material.uniforms.uSky.value.copy(dayLight.sky);
         material.uniforms.uNight.value = dayLight.night;
         if (!animate) return;

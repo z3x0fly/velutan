@@ -11,11 +11,16 @@ export const dayClock = {
     secPerDay: 3.5,
 };
 
-/** O anki ışık renkleri (Water gibi katmanlar okur) */
+/** Gün döngüsü kapalıyken ışığın yönü (öğleden sonra, kuzeybatıdan: haritanın gölgeleri buna göre çizildi) */
+export const DEFAULT_SUN_DIR = new THREE.Vector3(-14, 22, -10).normalize();
+
+/** O anki ışık renkleri ve yönü (Water, Clouds, Dragon gibi katmanlar okur) */
 export const dayLight = {
     sun: new THREE.Color('#fff1d6'),
     sky: new THREE.Color('#b9c9d6'),
     night: 0,
+    /** Ana ışığın (gündüz güneş, gece ay) geldiği yön */
+    sunDir: DEFAULT_SUN_DIR.clone(),
 };
 
 export interface DayInfo {
@@ -24,9 +29,15 @@ export interface DayInfo {
     night: number;
     /** Simülasyonda kaçıncı gün (1'den) */
     day: number | null;
+    /** Güneşin ufuktan yüksekliği (derece) */
+    sunElevation: number;
+    /** Ay evresi 0 (yeni) .. 0.5 (dolunay) .. 1 */
+    moonPhase: number;
+    /** Gün uzunluğu (saat), harita merkezinde */
+    dayLength: number;
 }
 
-let info: DayInfo = { active: false, hour: 13, night: 0, day: null };
+let info: DayInfo = { active: false, hour: 13, night: 0, day: null, sunElevation: 50, moonPhase: 0, dayLength: 12 };
 const listeners = new Set<() => void>();
 
 export const dayStore = {
@@ -42,6 +53,7 @@ export const dayStore = {
         if (
             next.active === info.active &&
             next.day === info.day &&
+            Math.abs(next.moonPhase - info.moonPhase) < 0.01 &&
             Math.abs(next.night - info.night) < 0.02 &&
             Math.floor(next.hour * 4) === Math.floor(info.hour * 4)
         )

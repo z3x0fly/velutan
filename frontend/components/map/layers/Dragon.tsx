@@ -6,6 +6,7 @@ import { useAnimations, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { to3D } from '../utils/coords';
 import { useHeightField } from '../useHeightField';
+import { dayLight } from '../dayStore';
 
 /**
  * Haritayı tavaf eden ejderha: Olgrud'dan başlayıp bütün kıtaların üstünden geçen kapalı bir rotada uçar.
@@ -41,7 +42,9 @@ const TOUR: [number, number][] = [
     [6300, 3600], // Eranstrum
     [4900, 3500], // Qasaar
 ];
-const SPEED = 0.55; // dünya birimi / sn (tam tur ≈ 3 dk)
+const SPEED = 0.55; // seyir hızı, dünya birimi / sn (tam tur ≈ 3 dk)
+// Uçuş fiziği (ölçekli): yerçekimi koordineli dönüşün yatışını ve tırmanmada hız kaybını belirler
+const G = 0.25;
 const CRUISE = 1.3; // denizden yükseklik
 const CLEARANCE = 0.75; // dağların üstünden en az bu kadar
 const WINGSPAN = 1.15; // dünya birimi (dağların yanında okunur boyut)
@@ -69,6 +72,11 @@ const Dragon = () => {
     const u = useRef(0);
     const lift = useRef(CRUISE);
     const roll = useRef(0);
+    const pitch = useRef(0);
+    const speed = useRef(SPEED);
+    const prevY = useRef(CRUISE);
+    const prevHead = useRef<number | null>(null);
+    const flyAction = useRef<THREE.AnimationAction | null>(null);
     const tmp = useMemo(() => ({ p: new THREE.Vector3(), dir: new THREE.Vector3(), ahead: new THREE.Vector3() }), []);
     // Gölge haritası Canvas'ın `shadows` ayarıyla açılır (ejderha açıkken)
     const world = useThree((st) => st.scene);
@@ -139,6 +147,7 @@ const Dragon = () => {
     useEffect(() => {
         const fly = actions.flying ?? Object.values(actions)[0];
         fly?.reset().fadeIn(0.3).play();
+        flyAction.current = fly ?? null;
         return () => {
             fly?.fadeOut(0.2);
         };
@@ -149,7 +158,8 @@ const Dragon = () => {
         if (!r) return;
         const t = clock.elapsedTime;
         const dt = Math.min(delta, 0.1);
-        u.current = (u.current + (dt * SPEED) / length) % 1;
+        if (dt <= 0) return;
+        u.current = (u.current + (dt * speed.current) / length) % 1;
         const { p, dir, ahead } = tmp;
         curve.getPointAt(u.current, p);
         curve.getTangentAt(u.current, dir);
@@ -166,20 +176,43 @@ const Dragon = () => {
         const y = lift.current + Math.sin(t * 0.9) * 0.04;
         r.position.set(p.x, y, p.z);
 
-        // Dönüşün içine yat: yön değişiminden (eğrilik) hesaplanır
-        curve.getTangentAt((u.current + 0.004) % 1, ahead);
-        const turn = dir.x * ahead.z - dir.z * ahead.x;
-        roll.current += (THREE.MathUtils.clamp(-turn * 18, -0.6, 0.6) - roll.current) * Math.min(dt * 2, 1);
-        r.rotation.set(0, Math.atan2(dir.x, dir.z), 0);
+        // --- Uçuş fiziği ---
+        // Tırmanma hızı (dikey) ve yatay hız: tırmanırken kinetik enerji potansiyele döner (yavaşlar),
+        // alçalırken hızlanır; motor yerine kanat çırpışı seyir hızına geri iter.
+        const climb = (y - prevY.current) / dt;
+        prevY.current = y;
+        const target = SPEED * THREE.MathUtils.clamp(1 - climb * 0.9, 0.6, 1.4);
+        speed.current += (target - speed.current) * Math.min(dt * 1.1, 1);
+        // Koordineli dönüş: yatış açısı tan(φ) = v·ω / g (ω: yön değişim hızı)
+        const head = Math.atan2(dir.x, dir.z);
+        let omega = 0;
+        if (prevHead.current !== null) {
+            let dh = head - prevHead.current;
+            dh = ((dh + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+            omega = dh / dt;
+        }
+        prevHead.current = head;
+        const bank = THREE.MathUtils.clamp(Math.atan((speed.current * omega) / G), -1.0, 1.0);
+        roll.current += (-bank - roll.current) * Math.min(dt * 2.5, 1);
+        // Burun tırmanma açısına göre
+        const gamma = Math.atan2(climb, speed.current);
+        pitch.current += (gamma - pitch.current) * Math.min(dt * 2, 1);
+        r.rotation.set(0, head, 0);
         r.rotateZ(roll.current);
-        r.rotateX(-(want - lift.current) * 0.4);
+        r.rotateX(-pitch.current * 0.8);
+        // Kanat: yavaşken ve tırmanırken hızlı çırpar, alçalırken süzülür
+        const fly = flyAction.current;
+        if (fly) {
+            const effort = 0.55 + climb * 2.4 + (SPEED - speed.current) * 2.2;
+            fly.timeScale += (THREE.MathUtils.clamp(effort, 0.25, 1.8) - fly.timeScale) * Math.min(dt * 1.5, 1);
+        }
 
-        // Güneş ejderhayı izler (yönü sabit; yalnızca gölge kutusu taşınır)
+        // Güneş ejderhayı izler: yön gökyüzünden (dayLight), gölge kutusu ejderhayla taşınır
         const s = sun.current;
         if (s) {
             s.light.target.position.set(p.x, y, p.z);
             s.light.target.updateMatrixWorld();
-            s.light.position.copy(s.light.target.position).addScaledVector(s.dir, SUN_DISTANCE);
+            s.light.position.copy(s.light.target.position).addScaledVector(dayLight.sunDir, SUN_DISTANCE);
         }
     });
 

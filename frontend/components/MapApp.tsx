@@ -10,6 +10,8 @@ import type { MapCanvas3DHandle } from './map/MapCanvas3D';
 
 // 3D motor (three.js) ayrı parça: ilk boyama ve PageSpeed ölçümü onu beklemez
 const MapCanvas3D = dynamic(() => import('./map/MapCanvas3D'), { ssr: false });
+// Küre (gezegen) görünümü: yalnızca seçilince yüklenir
+const GlobeCanvas = dynamic(() => import('./map/GlobeCanvas'), { ssr: false });
 import PatchNotesModal from './ui/modals/PatchNotesModal';
 import MapScaleBar from './ui/MapScaleBar';
 import DiceTray from './ui/DiceTray';
@@ -25,10 +27,10 @@ import RouteBreakdown from './ui/RouteBreakdown';
 import SharedPinsPrompt from './ui/SharedPinsPrompt';
 import { pinStore } from './map/pinStore';
 import { sessionStore } from './ui/panorama/session';
-import { TONE_FILTER, useTheme } from './map/themeStore';
+import { themeStore, TONE_FILTER, useTheme } from './map/themeStore';
 import { DayClockBadge, NightOverlay } from './ui/DayClock';
 import { travelView, useTravelEye } from './map/travelView';
-import { Eye, Map as MapIcon } from 'lucide-react';
+import { Eye, Globe2, Map as MapIcon } from 'lucide-react';
 
 
 
@@ -122,12 +124,30 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
 
   // Defter/sınır listesinden "oraya uç" istekleri
   useEffect(() => {
+    let retry: ReturnType<typeof setInterval> | null = null;
     const onFly = (e: Event) => {
       const { x, y } = (e as CustomEvent<{ x: number; y: number }>).detail;
-      mapRef.current?.flyTo(x, y);
+      if (retry) clearInterval(retry);
+      // Küreden dönüşte düz harita henüz yükleniyor olabilir: hazır olunca uç (en fazla 15 sn bekler)
+      let tries = 0;
+      const go = () => {
+        if (mapRef.current) {
+          mapRef.current.flyTo(x, y);
+          if (retry) clearInterval(retry);
+          retry = null;
+        } else if (++tries > 60 && retry) {
+          clearInterval(retry);
+          retry = null;
+        }
+      };
+      go();
+      if (!mapRef.current) retry = setInterval(go, 250);
     };
     window.addEventListener('velutan:fly', onFly);
-    return () => window.removeEventListener('velutan:fly', onFly);
+    return () => {
+      window.removeEventListener('velutan:fly', onFly);
+      if (retry) clearInterval(retry);
+    };
   }, []);
 
   // Durak/işaret koyarken haritadaki işaretçiler tıklamayı yutmasın: tık her zaman altındaki zemine gider
@@ -222,11 +242,12 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
 
       <PatchNotesModal />
       <SharedPinsPrompt />
-      <LoadingIndicator />
+      {theme.world !== 'kure' && <LoadingIndicator />}
 
       {/* 1. MAP LAYER: Harita en dipte (Hata giderme: Hydration guard) */}
       <div className="absolute inset-0 z-0" style={theme.tone === 'renkli' ? undefined : { filter: TONE_FILTER[theme.tone] }}>
-        {mounted && (
+        {mounted && theme.world === 'kure' && <GlobeCanvas regions={regions} />}
+        {mounted && theme.world !== 'kure' && (
           <MapCanvas3D
             apiRef={mapRef}
             regions={filteredRegions}
@@ -265,7 +286,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
              <div className="bg-black/90 border-2 border-amber-600/40 p-3 md:p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] md:min-w-[280px]">
                 <div className="flex justify-between items-center mb-4 border-b border-amber-600/20 pb-2">
                     <h3 className="text-amber-500 font-serif italic font-bold tracking-widest text-sm">YOLCULUK ÖZETİ</h3>
-                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.7.1</span>
+                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.7.2</span>
                 </div>
                 
                 <div className="space-y-4">
@@ -355,7 +376,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
 
 
         {/* Sol Üst: Legend + Seyahat Kontrolleri */}
-        <div className="absolute top-3 left-3 md:top-8 md:left-8 pointer-events-auto z-[10002]">
+        <div className={`absolute top-3 left-3 md:top-8 md:left-8 pointer-events-auto z-[10002] ${theme.world === 'kure' ? 'hidden' : ''}`}>
           <LegendPanel 
             selectedType={selectedType} 
             onTypeSelect={setSelectedType} 
@@ -389,6 +410,15 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
         {/* COMPASS: z-index artırıldı ve konumu sabitlendi */}
         <div className="absolute top-1 right-1 md:top-8 md:right-8 pointer-events-auto scale-[0.4] md:scale-[0.55] origin-top-right z-[10001] opacity-90 hover:opacity-100 transition-opacity">
           <VintageCompass onReset={handleCompassReset} />
+          {/* Dünya şekli: düz harita / küre */}
+          <button
+            onClick={() => themeStore.set({ world: theme.world === 'kure' ? 'duz' : 'kure' })}
+            title={theme.world === 'kure' ? 'Düz haritaya dön' : 'Dünyayı küre olarak gör'}
+            aria-label={theme.world === 'kure' ? 'Düz haritaya dön' : 'Küre görünümü'}
+            className="absolute -left-16 top-6 flex h-14 w-14 items-center justify-center rounded-full border-2 border-amber-600/50 bg-black/70 text-amber-400 hover:border-amber-400 hover:text-amber-200"
+          >
+            {theme.world === 'kure' ? <MapIcon size={26} /> : <Globe2 size={26} />}
+          </button>
           
           {/* Spam Feedback floating text */}
           {spamFeedback && (
@@ -418,7 +448,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
         {/* BOTTOM LEFT: Map Scale Bar & Dice Roller */}
         {/* Sol alt: ölçek ve tek sıra düğme (zar, ayarlar, hakkında) */}
         <div className="absolute bottom-3 left-3 md:bottom-8 md:left-8 pointer-events-auto flex flex-col items-start gap-3">
-           <div className="hidden md:block"><MapScaleBar /></div>
+           {theme.world !== 'kure' && <div className="hidden md:block"><MapScaleBar /></div>}
            <div className="flex items-center gap-2">
              <DiceTray />
              <InfoLinks />

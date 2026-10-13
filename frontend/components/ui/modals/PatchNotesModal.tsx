@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.7.1';
+    const PATCH_VERSION = '1.7.2';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,9 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'Küre: Velutan bir gezegen', desc: "Pusulanın yanındaki dünya düğmesiyle (ya da Ayarlar > Tema > Dünyanın şekli) harita bütün gezegeni kaplayan bir küreye dönüşür: gece-gündüz sınırı gezegende ilerler, gece yüzünde şehirler yanar, bulutlar akar, ay gerçek evresiyle döner, ejderha gezegenin üstünde uçar. Bir şehre tıkla ya da yaklaş: düz haritada oraya inersin." },
+                { title: 'Gerçek gökyüzü', desc: 'Gece-gündüz açıkken güneş ve ay gerçek gökyüzü mekaniğiyle: eksen eğikliği, mevsim, enlem. Baktığın yerin kendi saati var (haritanın iki ucu arasında 24 saat); kuzeyde yazın gün uzun, kışın kısa; dolunay geceyi aydınlatır, yeni ayda karanlık. Saat göstergesinde ay evresi ve gün uzunluğu.' },
+                { title: 'Ejderhanın uçuşu', desc: 'Ejderha artık fiziğe göre uçuyor: dönüşlerde hızına göre yatıyor, tırmanırken yavaşlayıp kanat çırpıyor, alçalırken hızlanıp süzülüyor; gölgesi güneşin gerçek yönüne düşüyor.' },
                 { title: 'Gerçekçi bulutlar', desc: 'Uzaklaşınca kümülüs bulutları belirir: tepeleri güneşte parlar, altları gri; rüzgârla akar, gölgeleri araziye düşer. Yaklaşınca açılır.' },
                 { title: 'İklime göre dağlar', desc: 'Kuzeyin ve karlı diyarların dağlarında kar aşağıya iner, kaya mavimsi; ılıman dağlarda yalnız zirve karlı; Qasaar çölünün dağlarında kar yok, kaya sıcak tonlu.' },
                 { title: 'Yolcu gözü', desc: "Seyahat simülasyonunda yolcu artık bir figür: karada pelerinli yürüyüşçü, denizde yelkenli. Alttaki düğmeyle 'Yolcu gözü'ne geç: kamera yolcunun arkasından, yere yakın takip eder." },

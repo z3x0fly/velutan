@@ -2,7 +2,8 @@
 
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { Moon, Sun, Sunrise } from 'lucide-react';
-import { dayStore, fmtHour, sunElevation } from '../map/dayStore';
+import { dayStore, fmtHour } from '../map/dayStore';
+import { MOON_PHASE_NAME } from '../map/astro';
 
 const useDay = () => useSyncExternalStore(dayStore.subscribe, dayStore.get, dayStore.get);
 
@@ -30,13 +31,18 @@ export function NightOverlay() {
 export function DayClockBadge() {
     const d = useDay();
     if (!d.active) return null;
-    const elev = sunElevation(d.hour);
-    const Icon = elev > 0.2 ? Sun : elev > -0.15 ? Sunrise : Moon;
+    const e = d.sunElevation;
+    const Icon = e > 8 ? Sun : e > -6 ? Sunrise : Moon;
+    const dl = `${Math.floor(d.dayLength)} sa ${Math.round((d.dayLength % 1) * 60)} dk`;
     return (
-        <div className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-black/70 px-3 py-1.5 text-[12px] font-bold text-amber-100/90 shadow-lg backdrop-blur-sm" title="Gün döngüsü">
-            <Icon size={14} className={elev > -0.15 ? 'text-amber-400' : 'text-sky-300'} />
+        <div
+            className="flex items-center gap-1.5 rounded-full border border-amber-600/30 bg-black/70 px-3 py-1.5 text-[12px] font-bold text-amber-100/90 shadow-lg backdrop-blur-sm"
+            title={`Güneş ${e.toFixed(0)}° · gün uzunluğu ${dl} · ${MOON_PHASE_NAME(d.moonPhase)}`}
+        >
+            <Icon size={14} className={e > -6 ? 'text-amber-400' : 'text-sky-300'} />
             {d.day !== null && <span className="text-amber-500/80">{d.day}. gün ·</span>}
             <span className="font-mono">{fmtHour(d.hour)}</span>
+            {e <= -6 && <span className="text-sky-200/70">· {MOON_PHASE_NAME(d.moonPhase)}</span>}
         </div>
     );
 }

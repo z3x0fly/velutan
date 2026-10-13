@@ -8,15 +8,18 @@ export type TreeTheme = 'dogal' | 'gri' | 'sonbahar' | 'kis';
 export type MapTone = 'renkli' | 'gravur' | 'sepya';
 /** Gün döngüsü: kapalı (hep gündüz), döngü (birkaç dakikada bir gün), gerçek saat */
 export type DayCycle = 'kapali' | 'dongu' | 'saat';
+/** Dünyanın şekli: düz harita ya da küre (gezegen görünümü) */
+export type WorldShape = 'duz' | 'kure';
 
 export interface ThemeState {
     trees: TreeTheme;
     tone: MapTone;
     day: DayCycle;
+    world: WorldShape;
 }
 
 const KEY = 'velutan_tema';
-const DEFAULT: ThemeState = { trees: 'dogal', tone: 'renkli', day: 'kapali' };
+const DEFAULT: ThemeState = { trees: 'dogal', tone: 'renkli', day: 'kapali', world: 'duz' };
 
 let state: ThemeState = DEFAULT;
 let loaded = false;

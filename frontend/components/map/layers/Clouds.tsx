@@ -8,7 +8,6 @@ import { seasonUniforms } from '../seasonStore';
 import { CLOUD_GLSL, cloudUniforms } from '../cloudField';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
 
-const SUN_DIR = new THREE.Vector3(-14, 22, -10).normalize();
 
 const vertexShader = /* glsl */ `
     varying vec3 vWorld;
@@ -68,7 +67,7 @@ const Clouds = () => {
                         fog: false,
                         uniforms: {
                             ...cloudUniforms,
-                            uSun: { value: SUN_DIR },
+                            uSun: { value: dayLight.sunDir },
                             uSunColor: { value: new THREE.Color('#fffaf0') },
                             uShade: { value: new THREE.Color('#8d97a6') },
                             uLayer: { value: i },
