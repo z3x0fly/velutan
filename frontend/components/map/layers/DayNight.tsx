@@ -4,7 +4,8 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { dayClock, dayLight, dayStore, DEFAULT_SUN_DIR } from '../dayStore';
-import { dayLength, sky, todayOfYear, worldToLatLon } from '../astro';
+import { dayLength, sky, worldToLatLon } from '../astro';
+import { skyTime } from '../skyClock';
 import { useTheme } from '../themeStore';
 
 const DAY = {
@@ -24,10 +25,6 @@ const NIGHT = {
     sky: new THREE.Color('#2a3a5c'),
     fog: new THREE.Color('#05070c'),
 };
-/** Döngü kipinde bir gün kaç saniye */
-const CYCLE_SECONDS = 240;
-/** Bilinen bir yeni ay: 6 Ocak 2000 18:14 UTC (ay evresi bundan sayılır) */
-const NEW_MOON_EPOCH = Date.UTC(2000, 0, 6, 18, 14) / 86400000;
 const SUN_DISTANCE = 30;
 
 const smooth = (a: number, b: number, x: number) => {
@@ -47,7 +44,6 @@ const _view = new THREE.Vector3();
 export default function DayNight() {
     const { scene, gl, invalidate, camera } = useThree();
     const mode = useTheme().day;
-    const start = useRef(performance.now());
     const lights = useRef<{ hemi?: THREE.HemisphereLight; sun?: THREE.DirectionalLight; fill?: THREE.DirectionalLight }>({});
     const applied = useRef(false);
     const c = useRef(new THREE.Color());
@@ -78,25 +74,15 @@ export default function DayNight() {
             }
             return;
         }
-        const now = new Date();
-        const nowDays = now.getTime() / 86400000;
-        let hour: number;
-        let doy = todayOfYear(now);
-        let days = nowDays - NEW_MOON_EPOCH;
+        let { hour, doy, days } = skyTime();
         let amp = 1;
         if (sim !== null) {
+            // Seyahat: yolculuk günüyle (sabah 6'da yola çıkılır)
             hour = (6 + sim * 24) % 24;
             doy += Math.floor(sim);
             days += sim;
             // Gün çok hızlı geçiyorsa gece yanıp sönmesin: karanlık yumuşar
             amp = THREE.MathUtils.clamp((dayClock.secPerDay - 1.2) / 2, 0.25, 1);
-        } else if (mode === 'saat') {
-            hour = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
-        } else {
-            const elapsed = (performance.now() - start.current) / 1000 / CYCLE_SECONDS; // gün
-            hour = (13 + elapsed * 24) % 24;
-            doy += Math.floor((13 / 24 + elapsed));
-            days += elapsed;
         }
         // Bakılan yer: ekranın ortasının altındaki zemin noktası -> enlem/boylam (gezegen haritanın tamamı)
         camera.getWorldDirection(_view);

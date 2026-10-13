@@ -10,16 +10,19 @@ export type MapTone = 'renkli' | 'gravur' | 'sepya';
 export type DayCycle = 'kapali' | 'dongu' | 'saat';
 /** Dünyanın şekli: düz harita ya da küre (gezegen görünümü) */
 export type WorldShape = 'duz' | 'kure';
+/** Gezegen kurgusu: harita bütün gezegen (tam) ya da Dünya ölçüsünde gezegende bir kıta */
+export type PlanetModel = 'tam' | 'kita';
 
 export interface ThemeState {
     trees: TreeTheme;
     tone: MapTone;
     day: DayCycle;
     world: WorldShape;
+    planet: PlanetModel;
 }
 
 const KEY = 'velutan_tema';
-const DEFAULT: ThemeState = { trees: 'dogal', tone: 'renkli', day: 'kapali', world: 'duz' };
+const DEFAULT: ThemeState = { trees: 'dogal', tone: 'renkli', day: 'kapali', world: 'duz', planet: 'tam' };
 
 let state: ThemeState = DEFAULT;
 let loaded = false;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Compass, Hexagon, KeyRound, LogOut, MapPin, Plus, Radar, RefreshCw, Search, Settings, ShieldAlert, Trash2, Users } from 'lucide-react';
+import { Compass, Hexagon, KeyRound, LogOut, MapPin, MessageSquare, Plus, Radar, RefreshCw, Search, Settings, ShieldAlert, Trash2, Users } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import RegionEditor from '@/components/admin/RegionEditor';
 import UsersTab from '@/components/admin/UsersTab';
@@ -9,9 +9,10 @@ import AccountTab from '@/components/admin/AccountTab';
 import TerritoriesTab from '@/components/admin/TerritoriesTab';
 import SyncTab from '@/components/admin/SyncTab';
 import GuardTab from '@/components/admin/GuardTab';
+import FeedbackTab from '@/components/admin/FeedbackTab';
 import { api, errorMessage, loadSession, mediaUrl, onUnauthorized, Region, Role, saveSession, Session } from '@/lib/api';
 
-type Tab = 'regions' | 'territories' | 'sync' | 'guard' | 'users' | 'account';
+type Tab = 'regions' | 'territories' | 'sync' | 'feedback' | 'guard' | 'users' | 'account';
 
 function LoginForm({ onLogin }: { onLogin: (s: Session) => void }) {
     const [username, setUsername] = useState('');
@@ -133,6 +134,9 @@ export default function AdminPage() {
                         <button onClick={() => setTab('territories')} className={tabBtn('territories')}>
                             <Hexagon size={14} className="mx-auto mb-1" /> Sınırlar
                         </button>
+                        <button onClick={() => setTab('feedback')} className={tabBtn('feedback')}>
+                            <MessageSquare size={14} className="mx-auto mb-1" /> Görüşler
+                        </button>
                         <button onClick={() => setTab('sync')} className={tabBtn('sync')}>
                             <RefreshCw size={14} className="mx-auto mb-1" /> Senkron
                         </button>
@@ -213,6 +217,7 @@ export default function AdminPage() {
                     {tab === 'account' && <AccountTab session={session} />}
                     {tab === 'territories' && <TerritoriesTab regions={regions} />}
                     {tab === 'sync' && <SyncTab isAdmin={isAdmin} />}
+                    {tab === 'feedback' && <FeedbackTab isAdmin={isAdmin} />}
                     {tab === 'guard' && isAdmin && <GuardTab />}
                     {tab === 'regions' && selected !== null && (
                         <RegionEditor

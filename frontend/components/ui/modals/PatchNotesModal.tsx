@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.7.2';
+    const PATCH_VERSION = '1.7.4';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,7 +33,9 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
-                { title: 'Küre: Velutan bir gezegen', desc: "Pusulanın yanındaki dünya düğmesiyle (ya da Ayarlar > Tema > Dünyanın şekli) harita bütün gezegeni kaplayan bir küreye dönüşür: gece-gündüz sınırı gezegende ilerler, gece yüzünde şehirler yanar, bulutlar akar, ay gerçek evresiyle döner, ejderha gezegenin üstünde uçar. Bir şehre tıkla ya da yaklaş: düz haritada oraya inersin." },
+                { title: 'Zamanı atlat', desc: "Sağ üstteki 'Zaman' düğmesi (Witcher'daki meditasyon gibi): kadranda saati seç, 'Bekle'; zaman hızla akar, güneş batar, ay doğar. Günler, haftalar, aylar da atlatılır: ay evresi, mevsim ve gün uzunluğu nasıl değişir, gözünle gör. Düz haritada da kürede de çalışır." },
+                { title: 'Geri bildirim', desc: "Alttaki 'Görüş bildir' ile öneri, hata ya da istek yaz; ekip okur. İlk topluluk oylaması açık: Velutan gezegeni 'harita tüm gezegen' mi olsun, 'Dünya ölçeğinde kıta' mı? İkisini de dene, oyunu ver." },
+                { title: 'Küre: Velutan bir gezegen', desc: "Pusulanın yanındaki dünya düğmesiyle (ya da Ayarlar > Tema > Dünyanın şekli) harita bir gezegene dönüşür: gece-gündüz sınırı ilerler, gece yüzünde şehirler yanar, bulutlar akar, ay gerçek evresiyle döner. Bir şehre tıkla ya da yaklaş: düz haritada oraya inersin. İki gezegen kurgusu var (harita tüm gezegen / Dünya ölçeğinde kıta): hangisi kalsın, oyla!" },
                 { title: 'Gerçek gökyüzü', desc: 'Gece-gündüz açıkken güneş ve ay gerçek gökyüzü mekaniğiyle: eksen eğikliği, mevsim, enlem. Baktığın yerin kendi saati var (haritanın iki ucu arasında 24 saat); kuzeyde yazın gün uzun, kışın kısa; dolunay geceyi aydınlatır, yeni ayda karanlık. Saat göstergesinde ay evresi ve gün uzunluğu.' },
                 { title: 'Ejderhanın uçuşu', desc: 'Ejderha artık fiziğe göre uçuyor: dönüşlerde hızına göre yatıyor, tırmanırken yavaşlayıp kanat çırpıyor, alçalırken hızlanıp süzülüyor; gölgesi güneşin gerçek yönüne düşüyor.' },
                 { title: 'Gerçekçi bulutlar', desc: 'Uzaklaşınca kümülüs bulutları belirir: tepeleri güneşte parlar, altları gri; rüzgârla akar, gölgeleri araziye düşer. Yaklaşınca açılır.' },

@@ -5,7 +5,12 @@ import { createPortal } from 'react-dom';
 import { RotateCcw, Settings2, X } from 'lucide-react';
 import { graphicsStore, GraphicsPreset, ResolutionPref, resolveSettings } from '../map/graphicsStore';
 import type { QualityTier } from '../map/terrain/quality';
-import { DayCycle, MapTone, themeStore, TreeTheme, useTheme, WorldShape } from '../map/themeStore';
+import { DayCycle, MapTone, PlanetModel, themeStore, TreeTheme, useTheme, WorldShape } from '../map/themeStore';
+
+const PLANETS: { id: PlanetModel; label: string; desc: string }[] = [
+    { id: 'tam', label: 'Harita tüm gezegen', desc: 'Harita bütün küreyi kaplar (yarıçap ≈ 864 km); iki ucu arasında 24 saat fark.' },
+    { id: 'kita', label: 'Dünya ölçeğinde kıta', desc: 'Dünya büyüklüğünde gezegen; harita kuzeyde bir kıta (16°K–60°K), ölçek bozulmaz.' },
+];
 
 const WORLDS: { id: WorldShape; label: string }[] = [
     { id: 'duz', label: 'Düz harita' },
@@ -224,6 +229,15 @@ export default function GraphicsSettings() {
                                             </Choice>
                                         ))}
                                     </div>
+                                    <span className="mt-3 block text-[12px] font-bold text-amber-100/80">Gezegen (topluluk oylamasında)</span>
+                                    <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                                        {PLANETS.map((t) => (
+                                            <Choice key={t.id} active={(theme.planet ?? 'tam') === t.id} onClick={() => themeStore.set({ planet: t.id })}>
+                                                {t.label}
+                                            </Choice>
+                                        ))}
+                                    </div>
+                                    <p className="mt-1.5 text-[11px] italic text-amber-100/45">{PLANETS.find((p) => p.id === (theme.planet ?? 'tam'))?.desc} Hangisi kalsın? Geri bildirimden oy ver.</p>
                                 </div>
                                 <div>
                                     <span className="block text-[13px] font-bold text-amber-100/90">Harita tonu</span>

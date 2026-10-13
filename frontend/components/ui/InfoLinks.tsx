@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Github, Heart, Info, Sparkles, User, X } from 'lucide-react';
+import { Github, Heart, Info, MessageSquarePlus, Sparkles, User, X } from 'lucide-react';
+import { openFeedback } from './Feedback';
 
 const REPO_URL = 'https://github.com/z3x0fly/velutan';
 import { INFO_PAGES, InfoPage } from '../../content/hakkinda';
@@ -77,6 +78,16 @@ export default function InfoLinks() {
                                     </button>
                                 );
                             })}
+                            <button
+                                role="menuitem"
+                                onClick={() => {
+                                    openFeedback('yaz');
+                                    setMenu(false);
+                                }}
+                                className="flex w-full items-center gap-2.5 border-t border-amber-600/15 px-3.5 py-2 text-left text-[13px] font-bold text-amber-100/80 transition-colors hover:bg-amber-500/10 hover:text-amber-300"
+                            >
+                                <MessageSquarePlus size={14} className="text-amber-500/80" /> Geri bildirim
+                            </button>
                             <a
                                 href={REPO_URL}
                                 target="_blank"

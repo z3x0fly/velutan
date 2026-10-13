@@ -29,8 +29,10 @@ import { pinStore } from './map/pinStore';
 import { sessionStore } from './ui/panorama/session';
 import { themeStore, TONE_FILTER, useTheme } from './map/themeStore';
 import { DayClockBadge, NightOverlay } from './ui/DayClock';
+import TimeSkip from './ui/TimeSkip';
+import Feedback, { openFeedback } from './ui/Feedback';
 import { travelView, useTravelEye } from './map/travelView';
-import { Eye, Globe2, Map as MapIcon } from 'lucide-react';
+import { Eye, Globe2, Map as MapIcon, MessageSquarePlus, Vote } from 'lucide-react';
 
 
 
@@ -241,12 +243,13 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
     <div className="fixed inset-0 w-screen h-screen bg-[#a89361] overflow-hidden select-none">
 
       <PatchNotesModal />
+      <Feedback />
       <SharedPinsPrompt />
       {theme.world !== 'kure' && <LoadingIndicator />}
 
       {/* 1. MAP LAYER: Harita en dipte (Hata giderme: Hydration guard) */}
       <div className="absolute inset-0 z-0" style={theme.tone === 'renkli' ? undefined : { filter: TONE_FILTER[theme.tone] }}>
-        {mounted && theme.world === 'kure' && <GlobeCanvas regions={regions} />}
+        {mounted && theme.world === 'kure' && <GlobeCanvas key={theme.planet} regions={regions} />}
         {mounted && theme.world !== 'kure' && (
           <MapCanvas3D
             apiRef={mapRef}
@@ -286,7 +289,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
              <div className="bg-black/90 border-2 border-amber-600/40 p-3 md:p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] md:min-w-[280px]">
                 <div className="flex justify-between items-center mb-4 border-b border-amber-600/20 pb-2">
                     <h3 className="text-amber-500 font-serif italic font-bold tracking-widest text-sm">YOLCULUK ÖZETİ</h3>
-                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.7.2</span>
+                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.7.4</span>
                 </div>
                 
                 <div className="space-y-4">
@@ -428,6 +431,16 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
           )}
         </div>
 
+        {/* Kürede: topluluk oylaması */}
+        {theme.world === 'kure' && (
+          <button
+            onClick={() => openFeedback('oy')}
+            className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/40 bg-black/75 px-4 py-2 text-[12px] font-bold text-amber-200 shadow-xl hover:border-amber-400"
+          >
+            <Vote size={14} /> Hangi gezegen kalsın? Oy ver
+          </button>
+        )}
+
         {/* Simülasyonda kamera: kuşbakışı ya da yolcu gözü */}
         {isSimulating && (
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 pointer-events-auto flex overflow-hidden rounded-full border border-amber-500/40 bg-black/80 text-[12px] font-black uppercase tracking-widest shadow-xl">
@@ -441,8 +454,9 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
         )}
 
         {/* Sağ üst, pusulanın altı: gün döngüsü saati */}
-        <div className="absolute right-3 top-[92px] md:right-8 md:top-[156px] pointer-events-auto">
+        <div className="absolute right-3 top-[92px] md:right-8 md:top-[156px] pointer-events-auto flex flex-col items-end gap-2">
           <DayClockBadge />
+          <TimeSkip />
         </div>
 
         {/* BOTTOM LEFT: Map Scale Bar & Dice Roller */}
@@ -452,6 +466,14 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
            <div className="flex items-center gap-2">
              <DiceTray />
              <InfoLinks />
+             <button
+               onClick={() => openFeedback('yaz')}
+               title="Görüş bildir: öneri, hata, istek"
+               aria-label="Geri bildirim"
+               className="flex h-9 items-center gap-1.5 rounded-full border border-amber-600/30 bg-black/70 px-3 text-[12px] font-bold text-amber-300 hover:border-amber-500"
+             >
+               <MessageSquarePlus size={15} /> <span className="hidden md:inline">Görüş bildir</span>
+             </button>
            </div>
         </div>
 

@@ -14,6 +14,7 @@ import masaRouter from './routes/masa';
 import loreRouter from './routes/lore';
 import guardRouter from './routes/guard';
 import syncRouter from './routes/sync';
+import feedbackRouter from './routes/feedback';
 import { dataGuard, honeypot, poisonJson, staticGuard } from './guard';
 import { db } from './db';
 import { startSync } from './sync';
@@ -102,6 +103,7 @@ app.use('/territories', guardGet, territoriesRouter);
 app.use('/lore', (req, res, next) => (req.method === 'GET' ? dataGuard(req, res, () => (res.locals.poison ? res.status(403).json({ error: 'Erişim yok' }) : next())) : next()), loreRouter);
 app.use('/bekci', guardRouter);
 app.use('/senkron', syncRouter);
+app.use('/geri-bildirim', feedbackRouter);
 
 app.get('/', (_req, res) => {
     res.json({ message: 'Velutan World Map API' });

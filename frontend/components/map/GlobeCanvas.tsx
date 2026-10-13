@@ -2,23 +2,25 @@
 
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, OrbitControls, useAnimations, useGLTF } from '@react-three/drei';
+import { Html, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { mapAsset } from './media';
-import { latLonToPixel, MAP_CENTER_LAT, MAP_CENTER_LON, pixelToLatLon, PLANET_RADIUS_KM, sky, SYNODIC_MONTH, sunDeclination, todayOfYear } from './astro';
-import { themeStore, useTheme } from './themeStore';
+import { getPlanetModel, latLonToPixel, MAP_CENTER_LON, mapBounds, mapCenterLat, pixelToLatLon, planetRadiusKm, sky, SYNODIC_MONTH, sunDeclination, todayOfYear } from './astro';
+import { themeStore } from './themeStore';
+import { skyTime } from './skyClock';
+import { dayStore } from './dayStore';
+import { dayLength } from './astro';
 import type { Region } from './types';
 
 /**
  * Küre (gezegen) görünümü. Velutan haritası, Dünya ölçüsündeki gezegenin kuzey yarımküresinde gerçek enlem/boylam
  * yerinde (≈16°K..60°K, 31°B..31°D). Güneş gerçek gökyüzü mekaniğiyle (astro.ts): mevsime göre deklinasyon,
  * saate göre boylam; gece-gündüz sınırı gezegende ilerler. Gece yüzünde şehirler yanar. Ay, gerçek evresiyle
- * aynı güneşten aydınlanır (evre kendiliğinden doğru görünür). Ejderha gezegen üstünde fiziğe göre uçar.
+ * aynı güneşten aydınlanır (evre kendiliğinden doğru görünür). 
  * Bir yere tıklayınca ya da çok yaklaşınca düz haritada oraya inilir.
  */
 
 const R = 5;
-const NEW_MOON_EPOCH = Date.UTC(2000, 0, 6, 18, 14) / 86400000;
 const MAP_FRAME = 36 / 2048; // doku kenarındaki çerçeve payı
 const deg = THREE.MathUtils.degToRad;
 
@@ -41,14 +43,54 @@ function usePlanetTextures(regions: Region[]) {
         img.crossOrigin = 'anonymous';
         img.onload = () => {
             if (!alive) return;
-            // Harita bütün gezegeni kaplar: eşdikdörtgen (360° x 180°), çerçeve kırpılır
             const W = 8192, H = 4096;
             const c = document.createElement('canvas');
             c.width = W;
             c.height = H;
             const g = c.getContext('2d')!;
             const fx = img.width * MAP_FRAME, fy = img.height * MAP_FRAME;
-            g.drawImage(img, fx, fy, img.width - 2 * fx, img.height - 2 * fy, 0, 0, W, H);
+            if (getPlanetModel() === 'tam') {
+                // Harita bütün gezegeni kaplar: eşdikdörtgen (360° x 180°), çerçeve kırpılır
+                g.drawImage(img, fx, fy, img.width - 2 * fx, img.height - 2 * fy, 0, 0, W, H);
+            } else {
+                // Dünya ölçüsünde gezegen: okyanus, kutup buzulları; harita kendi enlem/boylam penceresinde bir kıta
+                g.fillStyle = '#34424d';
+                g.fillRect(0, 0, W, H);
+                for (let i = 0; i < 2600; i++) {
+                    const x = Math.random() * W, y = Math.random() * H, r = 20 + Math.random() * 160;
+                    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+                    gr.addColorStop(0, `rgba(${Math.random() < 0.5 ? '70,86,96' : '38,48,58'},0.18)`);
+                    gr.addColorStop(1, 'rgba(0,0,0,0)');
+                    g.fillStyle = gr;
+                    g.fillRect(x - r, y - r, r * 2, r * 2);
+                }
+                for (const [from, to] of [[0, H * 0.12], [H, H * 0.86]]) {
+                    const ice = g.createLinearGradient(0, from, 0, to);
+                    ice.addColorStop(0, 'rgba(232,238,242,1)');
+                    ice.addColorStop(1, 'rgba(232,238,242,0)');
+                    g.fillStyle = ice;
+                    g.fillRect(0, Math.min(from, to), W, Math.abs(to - from));
+                }
+                const b = mapBounds();
+                const x0 = ((b.lonW + 180) / 360) * W, x1 = ((b.lonE + 180) / 360) * W;
+                const y0 = ((90 - b.latN) / 180) * H, y1 = ((90 - b.latS) / 180) * H;
+                const mw = Math.round(x1 - x0), mh = Math.round(y1 - y0);
+                const m = document.createElement('canvas');
+                m.width = mw;
+                m.height = mh;
+                const mg = m.getContext('2d')!;
+                mg.drawImage(img, fx, fy, img.width - 2 * fx, img.height - 2 * fy, 0, 0, mw, mh);
+                mg.globalCompositeOperation = 'destination-in';
+                const feather = Math.min(mw, mh) * 0.06;
+                for (const [gx0, gy0, gx1, gy1] of [[0, 0, feather, 0], [mw, 0, mw - feather, 0], [0, 0, 0, feather], [0, mh, 0, mh - feather]]) {
+                    const lg = mg.createLinearGradient(gx0, gy0, gx1, gy1);
+                    lg.addColorStop(0, 'rgba(0,0,0,0)');
+                    lg.addColorStop(1, 'rgba(0,0,0,1)');
+                    mg.fillStyle = lg;
+                    mg.fillRect(0, 0, mw, mh);
+                }
+                g.drawImage(m, x0, y0);
+            }
             const day = new THREE.CanvasTexture(c);
             day.colorSpace = THREE.SRGBColorSpace;
             day.anisotropy = 8;
@@ -170,30 +212,10 @@ const MOON_FRAG = /* glsl */ `
         #include <colorspace_fragment>
     }`;
 
-/** Gökyüzü saati: kip (döngü / gerçek saat); kapalıysa gerçek saat */
-function useSkyClock() {
-    const mode = useTheme().day;
-    const start = useRef(performance.now());
-    return () => {
-        const now = new Date();
-        let doy = todayOfYear(now);
-        let hour = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
-        let days = now.getTime() / 86400000 - NEW_MOON_EPOCH;
-        if (mode === 'dongu') {
-            const elapsed = (performance.now() - start.current) / 1000 / 240;
-            hour = (13 + elapsed * 24) % 24;
-            doy += Math.floor(13 / 24 + elapsed);
-            days += elapsed;
-        }
-        return { doy: doy % 365.25, hour, days };
-    };
-}
-
 const _sun = new THREE.Vector3();
 
 function Planet({ regions, onPick }: { regions: Region[]; onPick: (r: Region) => void }) {
     const tex = usePlanetTextures(regions);
-    const clock = useSkyClock();
     const sunDir = useMemo(() => new THREE.Vector3(1, 0, 0), []);
     const mats = useMemo(() => {
         const planet = new THREE.ShaderMaterial({ vertexShader: PLANET_VERT, fragmentShader: PLANET_FRAG, uniforms: { dayMap: { value: null }, lightsMap: { value: null }, sunDir: { value: sunDir } } });
@@ -207,11 +229,13 @@ function Planet({ regions, onPick }: { regions: Region[]; onPick: (r: Region) =>
         mats.planet.uniforms.lightsMap.value = tex.lights;
     }, [tex, mats]);
     useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
+    // Küreden çıkınca saat göstergesi düz haritanın gün döngüsüne bırakılır
+    useEffect(() => () => dayStore.publish({ active: false, hour: 13, night: 0, day: null, sunElevation: 50, moonPhase: 0, dayLength: 12 }), []);
     const moonRef = useRef<THREE.Mesh>(null);
     const [info, setInfo] = useState('');
 
     useFrame((_, delta) => {
-        const { doy, hour, days } = clock();
+        const { doy, hour, days } = skyTime();
         // Güneşin tepede olduğu nokta: enlem = deklinasyon, boylam = haritanın öğle boylamından saat farkı kadar batı
         const dec = sunDeclination(doy);
         const subLon = MAP_CENTER_LON - (hour - 12) * 15;
@@ -223,7 +247,8 @@ function Planet({ regions, onPick }: { regions: Region[]; onPick: (r: Region) =>
         const moonLon = subLon + phase * 360;
         if (moonRef.current) latLonToVec(dec * Math.cos(phase * Math.PI * 2), moonLon, moonRef.current.position).multiplyScalar(R * 7);
         const s = sky(doy, hour, days);
-        const txt = `Gezegen yarıçapı ${Math.round(PLANET_RADIUS_KM)} km · haritanın ortasında güneş ${s.sun.elevation.toFixed(0)}° · ay %${Math.round(s.illumination * 100)}`;
+        dayStore.publish({ active: true, hour, night: 0, day: null, sunElevation: s.sun.elevation, moonPhase: s.phase, dayLength: dayLength(mapCenterLat(), doy) });
+        const txt = `Gezegen yarıçapı ${Math.round(planetRadiusKm())} km · haritanın ortasında güneş ${s.sun.elevation.toFixed(0)}° · ay %${Math.round(s.illumination * 100)}`;
         if (txt !== info) setInfo(txt);
     });
 
@@ -254,7 +279,6 @@ function Planet({ regions, onPick }: { regions: Region[]; onPick: (r: Region) =>
             {markers.map(({ r, pos }) => (
                 <GlobeMarker key={r.id} pos={pos} region={r} onPick={onPick} />
             ))}
-            <GlobeDragon />
             <Html fullscreen style={{ pointerEvents: 'none' }}>
                 <div className="absolute bottom-24 left-1/2 -translate-x-1/2 rounded-full border border-amber-600/30 bg-black/60 px-3 py-1 text-[11px] text-amber-100/70">{info}</div>
             </Html>
@@ -309,77 +333,6 @@ function Stars() {
     );
 }
 
-// Ejderha rotası (harita pikseli) küre üstünde; uçuş fiziği düz haritadakiyle aynı ilkeler
-const TOUR: [number, number][] = [
-    [5400, 5580], [6600, 6400], [5200, 6500], [3900, 6150], [2900, 5400], [2000, 4000], [1200, 3500], [900, 1900],
-    [1500, 900], [2900, 1300], [4200, 1600], [3300, 2700], [4900, 2400], [5700, 1500], [6900, 2700], [7500, 3500], [6300, 3600], [4900, 3500],
-];
-function GlobeDragon() {
-    const { scene, animations } = useGLTF('/models/dragon.glb');
-    const model = useMemo(() => scene.clone(true), [scene]);
-    const root = useRef<THREE.Group>(null);
-    const { actions } = useAnimations(animations, root);
-    const curve = useMemo(
-        () =>
-            new THREE.CatmullRomCurve3(
-                TOUR.map(([x, y]) => {
-                    const { lat, lon } = pixelToLatLon(x, y);
-                    return latLonToVec(lat, lon).multiplyScalar(R * 1.03);
-                }),
-                true,
-                'centripetal',
-            ),
-        [],
-    );
-    const length = useMemo(() => curve.getLength(), [curve]);
-    const st = useRef({ u: 0, speed: 0.12, roll: 0, prev: null as THREE.Vector3 | null });
-    useEffect(() => {
-        const a = actions.flying ?? Object.values(actions)[0];
-        a?.reset().play();
-    }, [actions]);
-    const fit = useMemo(() => {
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        model.traverse((o) => {
-            const m = o as THREE.Mesh;
-            if (m.isMesh) m.frustumCulled = false;
-        });
-        return 0.22 / Math.max(size.x, size.z, 1e-6);
-    }, [model]);
-    const tmp = useMemo(() => ({ p: new THREE.Vector3(), t: new THREE.Vector3(), up: new THREE.Vector3(), m: new THREE.Matrix4(), side: new THREE.Vector3() }), []);
-    useFrame((_, delta) => {
-        const r = root.current;
-        if (!r) return;
-        const dt = Math.min(delta, 0.1);
-        const s = st.current;
-        s.u = (s.u + (dt * s.speed) / length) % 1;
-        const { p, t, up, m, side } = tmp;
-        curve.getPointAt(s.u, p);
-        p.setLength(R * 1.03);
-        curve.getTangentAt(s.u, t);
-        up.copy(p).normalize();
-        t.addScaledVector(up, -t.dot(up)).normalize(); // teğeti yüzeye paralel yap
-        // Koordineli dönüş: ileriki teğetle açı farkı -> dönüş hızı -> yatış tan(φ) = v·ω / g
-        const t2 = curve.getTangentAt((s.u + 0.004) % 1).clone();
-        const turn = side.copy(t).cross(t2).dot(up);
-        const bank = Math.atan((s.speed * turn * 60) / 0.5);
-        s.roll += (THREE.MathUtils.clamp(-bank, -0.9, 0.9) - s.roll) * Math.min(dt * 2, 1);
-        r.position.copy(p);
-        // Yönelim: ileri = teğet, yukarı = küre normali
-        side.copy(up).cross(t).normalize();
-        m.makeBasis(side, up, t);
-        r.quaternion.setFromRotationMatrix(m);
-        r.rotateZ(s.roll);
-    });
-    return (
-        <group ref={root}>
-            <group scale={fit}>
-                <primitive object={model} />
-            </group>
-        </group>
-    );
-}
-
 /** Düz haritaya dönüş: bölgeye ya da bakılan noktaya inilir */
 function exitTo(px: number, py: number) {
     themeStore.set({ world: 'duz' });
@@ -404,7 +357,7 @@ function ZoomExit() {
 }
 
 export default function GlobeCanvas({ regions }: { regions: Region[] }) {
-    const start = useMemo(() => latLonToVec(20, MAP_CENTER_LON).multiplyScalar(R * 3.1), []);
+    const start = useMemo(() => latLonToVec(getPlanetModel() === 'tam' ? 20 : 34, MAP_CENTER_LON).multiplyScalar(R * 3.1), []);
     return (
         <div className="h-full w-full bg-black">
             <Canvas camera={{ fov: 40, near: 0.05, far: 600, position: start.toArray() }} dpr={[1, 2]} flat>
