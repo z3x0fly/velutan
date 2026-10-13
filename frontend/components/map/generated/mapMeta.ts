@@ -5,4 +5,4 @@ export const HEIGHT_MAX = 0.68947;
 export const RELIEF = 1.2;
 export const TREE_COUNT = 18799;
 export const TREE_STRIDE = 12;
-export const ASSET_VERSION = '0428f0877f';
+export const ASSET_VERSION = '53f22a092f';

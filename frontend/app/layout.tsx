@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cinzel, EB_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, KEYWORDS, SITE_NAME, SITE_URL } from "../lib/seo";
+import { API_URL } from "../components/map/media";
 
 const inter = Inter({ subsets: ["latin", "latin-ext"] });
 // Başlık/düğme: gravür havası. Metin: eski kitap hissi, uzun lore için okunaklı.
@@ -59,6 +60,10 @@ export default function RootLayout({
   return (
     <html lang="tr" translate="no" className="notranslate">
       <body className={`${inter.className} ${cinzel.variable} ${garamond.variable}`}>
+        {/* Bal küpü: insan görmez, arama motoru (robots + nofollow) girmez; kuralı çiğneyen kazıyıcı yasaklanır */}
+        <a href={`${API_URL}/veri/harita-tam.json`} rel="nofollow noopener" tabIndex={-1} aria-hidden="true" style={{ display: "none" }}>
+          Velutan harita verisi (JSON)
+        </a>
         {children}
         <div id="ui-portal" />
       </body>

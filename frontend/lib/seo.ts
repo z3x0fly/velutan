@@ -60,3 +60,54 @@ export function plainSummary(text: string, max = 158): string {
         .trim();
     return clean.length > max ? `${clean.slice(0, max - 1).replace(/\s+\S*$/, '')}…` : clean;
 }
+
+export interface LoreListItem {
+    slug: string;
+    kind: string;
+    title: string;
+    label: string | null;
+    summary: string | null;
+    cover: string | null;
+    place: string | null;
+    panorama_image: string | null;
+    updated: string | null;
+}
+
+export interface LoreDetail {
+    slug: string;
+    title: string;
+    label: string | null;
+    summary: string | null;
+    cover: string | null;
+    body: string | null;
+    kind: string;
+    url: string;
+    refs: Record<string, string>;
+    related: { title: string; items: { slug: string; title: string; label: string | null; kind: string }[] }[];
+}
+
+const apiBase = () => (process.env.API_INTERNAL_URL || API_URL).replace(/\/$/, '');
+
+/** velutanmap.com'dan senkronlanan wiki kayıtları (site haritası, dizin) */
+export async function fetchLoreList(): Promise<LoreListItem[]> {
+    try {
+        const res = await fetch(`${apiBase()}/lore/kayitlar`, { next: { revalidate: 600 } });
+        if (!res.ok) return [];
+        const d = await res.json();
+        return Array.isArray(d) ? d : [];
+    } catch {
+        return [];
+    }
+}
+
+export async function fetchLore(slug: string): Promise<LoreDetail | null> {
+    if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
+    try {
+        const res = await fetch(`${apiBase()}/lore/kayit/${slug}`, { next: { revalidate: 600 } });
+        return res.ok ? ((await res.json()) as LoreDetail) : null;
+    } catch {
+        return null;
+    }
+}
+
+export const KIND_LABEL: Record<string, string> = { content: 'Kayıt', location: 'Yer', panorama: '360° Mekân' };

@@ -7,7 +7,7 @@ import { ArrowUp, Info } from 'lucide-react';
 import { Hotspot, yawToLon } from './hotspots';
 
 /** Bakış yönü (lon/lat, derece) -> kürenin içinde bir nokta */
-export function dirFromView(lon: number, lat: number, r = 40) {
+export function dirFromView(lon: number, lat: number, r = 49.5) {
     const phi = THREE.MathUtils.degToRad(90 - lat);
     const theta = THREE.MathUtils.degToRad(lon);
     return new THREE.Vector3(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));

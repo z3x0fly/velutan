@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Compass, Hexagon, KeyRound, LogOut, MapPin, Plus, Search, Settings, ShieldAlert, Trash2, Users } from 'lucide-react';
+import { Compass, Hexagon, KeyRound, LogOut, MapPin, Plus, Radar, RefreshCw, Search, Settings, ShieldAlert, Trash2, Users } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import RegionEditor from '@/components/admin/RegionEditor';
 import UsersTab from '@/components/admin/UsersTab';
 import AccountTab from '@/components/admin/AccountTab';
 import TerritoriesTab from '@/components/admin/TerritoriesTab';
+import SyncTab from '@/components/admin/SyncTab';
+import GuardTab from '@/components/admin/GuardTab';
 import { api, errorMessage, loadSession, mediaUrl, onUnauthorized, Region, Role, saveSession, Session } from '@/lib/api';
 
-type Tab = 'regions' | 'territories' | 'users' | 'account';
+type Tab = 'regions' | 'territories' | 'sync' | 'guard' | 'users' | 'account';
 
 function LoginForm({ onLogin }: { onLogin: (s: Session) => void }) {
     const [username, setUsername] = useState('');
@@ -124,13 +126,21 @@ export default function AdminPage() {
                         {session.username} · {isAdmin ? 'Yönetici' : 'Editör'}
                     </p>
 
-                    <div className="flex gap-2 mb-6 text-[10px] uppercase tracking-widest font-bold">
+                    <div className="grid grid-cols-3 gap-2 mb-6 text-[10px] uppercase tracking-widest font-bold">
                         <button onClick={() => setTab('regions')} className={tabBtn('regions')}>
                             <MapPin size={14} className="mx-auto mb-1" /> Arşiv
                         </button>
                         <button onClick={() => setTab('territories')} className={tabBtn('territories')}>
                             <Hexagon size={14} className="mx-auto mb-1" /> Sınırlar
                         </button>
+                        <button onClick={() => setTab('sync')} className={tabBtn('sync')}>
+                            <RefreshCw size={14} className="mx-auto mb-1" /> Senkron
+                        </button>
+                        {isAdmin && (
+                            <button onClick={() => setTab('guard')} className={tabBtn('guard')}>
+                                <Radar size={14} className="mx-auto mb-1" /> Bekçi
+                            </button>
+                        )}
                         {isAdmin && (
                             <button onClick={() => setTab('users')} className={tabBtn('users')}>
                                 <Users size={14} className="mx-auto mb-1" /> Yetkililer
@@ -202,6 +212,8 @@ export default function AdminPage() {
                     {tab === 'users' && isAdmin && <UsersTab currentUser={session.username} />}
                     {tab === 'account' && <AccountTab session={session} />}
                     {tab === 'territories' && <TerritoriesTab regions={regions} />}
+                    {tab === 'sync' && <SyncTab isAdmin={isAdmin} />}
+                    {tab === 'guard' && isAdmin && <GuardTab />}
                     {tab === 'regions' && selected !== null && (
                         <RegionEditor
                             regionId={selected}

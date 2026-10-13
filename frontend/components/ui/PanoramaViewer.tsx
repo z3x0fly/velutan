@@ -34,17 +34,84 @@ const START_FOV = 100;
 /** Velutanmap.com'dan içe aktarılan panoramalar seed klasöründe tutulur */
 const isFromVelutanmap = (p: Panorama) => p.image.startsWith('/static/panoramas/seed/');
 
-type View = { lon: number; lat: number; targetFov: number; aim?: { lon: number; lat: number } };
+/**
+ * Panorama çizimi: bikübik (Catmull-Rom) örnekleme + büyütmeye göre netleştirme. Geniş açıda ekranın kenarları
+ * görüntüyü 3-5 kat büyütür; düz (bilineer) örnekleme orayı bulanıklaştırır. Bikübik büyütme kenarları keskin tutar,
+ * netleştirme yalnızca büyütülen yerde ve büyütme oranında devreye girer. Renklere dokunulmaz.
+ */
+const PANO_VERTEX = /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`;
+const PANO_FRAGMENT = /* glsl */ `
+    uniform sampler2D map;
+    uniform vec2 texSize;
+    varying vec2 vUv;
+    // Catmull-Rom bikübik, 9 okuma (doğrusal süzgeçten yararlanarak)
+    vec3 bicubic(vec2 uv) {
+        vec2 samplePos = uv * texSize;
+        vec2 texPos1 = floor(samplePos - 0.5) + 0.5;
+        vec2 f = samplePos - texPos1;
+        vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+        vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+        vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+        vec2 w3 = f * f * (-0.5 + 0.5 * f);
+        vec2 w12 = w1 + w2;
+        vec2 offset12 = w2 / w12;
+        vec2 texPos0 = (texPos1 - 1.0) / texSize;
+        vec2 texPos3 = (texPos1 + 2.0) / texSize;
+        vec2 texPos12 = (texPos1 + offset12) / texSize;
+        vec3 r = vec3(0.0);
+        r += texture2D(map, vec2(texPos0.x, texPos0.y)).rgb * w0.x * w0.y;
+        r += texture2D(map, vec2(texPos12.x, texPos0.y)).rgb * w12.x * w0.y;
+        r += texture2D(map, vec2(texPos3.x, texPos0.y)).rgb * w3.x * w0.y;
+        r += texture2D(map, vec2(texPos0.x, texPos12.y)).rgb * w0.x * w12.y;
+        r += texture2D(map, vec2(texPos12.x, texPos12.y)).rgb * w12.x * w12.y;
+        r += texture2D(map, vec2(texPos3.x, texPos12.y)).rgb * w3.x * w12.y;
+        r += texture2D(map, vec2(texPos0.x, texPos3.y)).rgb * w0.x * w3.y;
+        r += texture2D(map, vec2(texPos12.x, texPos3.y)).rgb * w12.x * w3.y;
+        r += texture2D(map, vec2(texPos3.x, texPos3.y)).rgb * w3.x * w3.y;
+        return r;
+    }
+    void main() {
+        vec3 c = max(bicubic(vUv), 0.0);
+        // Büyütme: bir ekran pikseline düşen doku pikseli (dikiş yerindeki sıçrama yok sayılır)
+        vec2 dx = dFdx(vUv * texSize), dy = dFdy(vUv * texSize);
+        dx.x = abs(dx.x) > texSize.x * 0.5 ? 0.0 : dx.x;
+        dy.x = abs(dy.x) > texSize.x * 0.5 ? 0.0 : dy.x;
+        float texelsPerPixel = max(length(dx), length(dy));
+        float mag = 1.0 / max(texelsPerPixel, 0.05);
+        float amount = clamp((mag - 1.0) * 0.18, 0.0, 0.45);
+        if (amount > 0.001) {
+            vec2 t = 1.0 / texSize;
+            vec3 blur = (texture2D(map, vUv + vec2(t.x, 0.0)).rgb + texture2D(map, vUv - vec2(t.x, 0.0)).rgb
+                + texture2D(map, vUv + vec2(0.0, t.y)).rgb + texture2D(map, vUv - vec2(0.0, t.y)).rgb) * 0.25;
+            vec3 base = texture2D(map, vUv).rgb;
+            c = clamp(c + (base - blur) * amount, 0.0, 1.0);
+        }
+        gl_FragColor = vec4(c, 1.0);
+        #include <colorspace_fragment>
+    }`;
+
+type View = { lon: number; lat: number; targetFov: number; fov?: number; aim?: { lon: number; lat: number } };
+const _dir = new THREE.Vector3();
 
 /**
  * Eşdikdörtgen (equirectangular) görseli kürenin içine giydirir. Sürükleyerek bakılır, tekerlekle FOV değişir.
  * Dokular önbelleğe alınmaz: panoramalar arasında gezinirken eskisi GPU'dan atılır.
  * yaw/pitch velutanmap.com düzenindedir (yaw 0 görselin ortası); bakış açısına yawToLon ile çevrilir.
  */
-const Sphere = ({ url, yaw, pitch, lockRef, viewRef, onLoaded, onError }: { url: string; yaw: number; pitch: number; lockRef: React.MutableRefObject<boolean>; viewRef: React.MutableRefObject<View>; onLoaded: () => void; onError: () => void }) => {
+/** Küre yarıçapı; balık gözü: kamera bakışın tersine bu oranda geri çekilir (kenar gerilmesi azalır, kenarlar netleşir) */
+const SPHERE_R = 50;
+const FISHEYE = 0.42;
+
+const Sphere = ({ url, yaw, pitch, lockRef, viewRef, fisheye = true, onLoaded, onError }: { url: string; yaw: number; pitch: number; lockRef: React.MutableRefObject<boolean>; viewRef: React.MutableRefObject<View>; fisheye?: boolean; onLoaded: () => void; onError: () => void }) => {
     const [texture, setTexture] = useState<THREE.Texture | null>(null);
     const { camera, gl } = useThree();
     const view = viewRef;
+    const fishK = useRef(0);
 
     useEffect(() => {
         let alive = true;
@@ -54,7 +121,13 @@ const Sphere = ({ url, yaw, pitch, lockRef, viewRef, onLoaded, onError }: { url:
             (t) => {
                 if (!alive) return t.dispose();
                 t.colorSpace = THREE.SRGBColorSpace;
-                t.anisotropy = gl.capabilities.getMaxAnisotropy();
+                // Ayrıntı katmanı (mipmap) yok: GPU her açıda tam çözünürlükten örnekler. Mipmap'le kenarlarda
+                // ve üst-altta düşük katman seçilip görüntü bulanıklaşıyordu (velutanmap.com da böyle yapar).
+                t.generateMipmaps = false;
+                t.minFilter = THREE.LinearFilter;
+                t.magFilter = THREE.LinearFilter;
+                t.anisotropy = 1;
+                t.wrapS = THREE.RepeatWrapping; // dikiş yerinde bikübik örnekleme karşı kenardan okur
                 loaded = t;
                 setTexture(t);
                 onLoaded();
@@ -117,9 +190,17 @@ const Sphere = ({ url, yaw, pitch, lockRef, viewRef, onLoaded, onError }: { url:
         }
         const phi = THREE.MathUtils.degToRad(90 - view.current.lat);
         const theta = THREE.MathUtils.degToRad(view.current.lon);
-        cam.lookAt(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta));
+        _dir.set(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta));
         const k = 1 - Math.exp(-Math.min(delta, 0.05) * 12);
-        cam.fov += (view.current.targetFov - cam.fov) * k;
+        // view.fov düz perspektif karşılığı; balık gözünde merkezdeki ölçek aynı kalsın diye gerçek açı daraltılır
+        view.current.fov = (view.current.fov ?? view.current.targetFov) + (view.current.targetFov - (view.current.fov ?? view.current.targetFov)) * k;
+        const eq = view.current.fov;
+        // Yakınlaştıkça balık gözü azalır (yakında düz perspektif); savaşta kapalı (ızgara ölçüsü bozulmasın)
+        fishK.current += ((fisheye ? FISHEYE * THREE.MathUtils.smoothstep(eq, 45, 95) : 0) - fishK.current) * k;
+        const back = fishK.current * SPHERE_R;
+        cam.position.copy(_dir).multiplyScalar(-back);
+        cam.lookAt(_dir.x * SPHERE_R, _dir.y * SPHERE_R, _dir.z * SPHERE_R);
+        cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(eq) / 2) * (SPHERE_R / (SPHERE_R + back))));
         cam.updateProjectionMatrix();
     });
 
@@ -128,12 +209,19 @@ const Sphere = ({ url, yaw, pitch, lockRef, viewRef, onLoaded, onError }: { url:
     useEffect(() => () => geometry.dispose(), [geometry]);
 
     // Görsel olduğu gibi: renk ve keskinlik velutanmap.com'daki ile aynı
-    if (!texture) return null;
-    return (
-        <mesh geometry={geometry}>
-            <meshBasicMaterial map={texture} toneMapped={false} />
-        </mesh>
-    );
+    const material = useMemo(() => {
+        if (!texture) return null;
+        const img = texture.image as { width?: number; height?: number } | undefined;
+        return new THREE.ShaderMaterial({
+            vertexShader: PANO_VERTEX,
+            fragmentShader: PANO_FRAGMENT,
+            uniforms: { map: { value: texture }, texSize: { value: new THREE.Vector2(img?.width || 3840, img?.height || 1920) } },
+        });
+    }, [texture]);
+    useEffect(() => () => material?.dispose(), [material]);
+
+    if (!texture || !material) return null;
+    return <mesh geometry={geometry} material={material} />;
 };
 
 interface PanoramaViewerProps {
@@ -266,6 +354,7 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
                     pitch={pano.initial_pitch}
                     lockRef={lockRef}
                     viewRef={viewRef}
+                    fisheye={!battle.on}
                     onLoaded={() => setStatus('ready')}
                     onError={() => setStatus('error')}
                 />

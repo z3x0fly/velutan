@@ -1,4 +1,5 @@
 import { Request, Response, Router } from 'express';
+import { db } from '../db';
 
 /**
  * velutanmap.com köprüsü: 360° panoramalardaki geçiş ve bilgi noktaları ile wiki kayıtları.
@@ -39,6 +40,23 @@ interface SourceEntry {
     panoramas?: { slug?: string; title?: string }[];
 }
 
+/** Senkronla saklanan kopya (velutanmap.com'a ulaşılamazsa buradan) */
+function fromDb(slug: string): SourceEntry | null {
+    try {
+        const r = db.prepare('SELECT * FROM lore_entries WHERE slug = ?').get(slug) as Record<string, string | null> | undefined;
+        if (!r) return null;
+        const refs = JSON.parse(r.refs || '{}') as Record<string, string>;
+        return {
+            entry: { slug, title: r.title ?? slug, label: r.label, summary: r.summary, coverImageUrl: r.cover, bodyMd: r.body, kind: r.kind ?? 'content' },
+            hotspots: JSON.parse(r.hotspots || '[]'),
+            groups: JSON.parse(r.related || '[]'),
+            refs: Object.fromEntries(Object.entries(refs).map(([k, v]) => [k, { title: v }])),
+        };
+    } catch {
+        return null;
+    }
+}
+
 const cache = new Map<string, { at: number; data: SourceEntry | null }>();
 const inflight = new Map<string, Promise<SourceEntry | null>>();
 
@@ -54,14 +72,14 @@ async function fetchEntry(slug: string): Promise<SourceEntry | null> {
                 signal: AbortSignal.timeout(8000),
             });
             // Kayıt yoksa bu da önbelleğe girer (her açılışta yeniden sorulmasın)
-            const data = r.ok ? ((await r.json()) as SourceEntry) : r.status === 404 ? null : (hit?.data ?? null);
+            const data = r.ok ? ((await r.json()) as SourceEntry) : r.status === 404 ? null : (hit?.data ?? fromDb(slug));
             if (r.ok || r.status === 404) {
                 if (cache.size >= MAX_CACHE) cache.delete(cache.keys().next().value as string);
                 cache.set(slug, { at: Date.now(), data });
             }
             return data;
         } catch {
-            return hit?.data ?? null;
+            return hit?.data ?? fromDb(slug);
         } finally {
             inflight.delete(slug);
         }
@@ -121,7 +139,7 @@ router.get('/kayit/:slug', async (req: Request, res: Response) => {
                 .slice(0, 200)
                 .map(([k, v]) => [k, text(v?.title, 120) ?? k]),
         ),
-        related: [...(d.groups ?? []), { title: '360° Mekânlar', items: (d.panoramas ?? []).map((p) => ({ ...p, label: '360°', kind: 'panorama' })) }].slice(0, 11).map((g) => ({
+        related: [...(d.groups ?? []), ...((d.panoramas ?? []).length ? [{ title: '360° Mekânlar', items: (d.panoramas ?? []).map((p) => ({ ...p, label: '360°', kind: 'panorama' })) }] : [])].slice(0, 11).map((g) => ({
             title: text(g.title, 60) ?? '',
             items: (g.items ?? [])
                 .filter((i) => i.slug && SLUG.test(i.slug))
@@ -129,6 +147,15 @@ router.get('/kayit/:slug', async (req: Request, res: Response) => {
                 .map((i) => ({ slug: i.slug!, title: text(i.title, 120) ?? i.slug!, label: text(i.label, 60), kind: text(i.kind, 20) ?? 'content' })),
         })),
     });
+});
+
+/** Senkronlanmış bütün kayıtlar (site haritası ve dizin sayfası için) */
+router.get('/kayitlar', (_req: Request, res: Response) => {
+    const rows = db
+        .prepare('SELECT slug, kind, title, label, summary, cover, place, panorama_image, source_updated AS updated FROM lore_entries ORDER BY title')
+        .all();
+    res.set('Cache-Control', 'public, max-age=600');
+    res.json(rows);
 });
 
 export default router;

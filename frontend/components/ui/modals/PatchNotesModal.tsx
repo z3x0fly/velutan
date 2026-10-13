@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.6.4';
+    const PATCH_VERSION = '1.7.0';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,9 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'velutanmap.com ile senkron', desc: "INTCH'in izniyle velutanmap.com'daki yerler, 360° mekânlar ve wiki kayıtları her 6 saatte bir kendiliğinden geliyor: haritaya 6 yeni yer eklendi (Al'İskad, Del'Gaar, Flarg, Krshil, Qiltareed, Vangud), orada taşınan yer burada da taşınıyor." },
+                { title: 'Velutan Wiki', desc: "Bütün karakterler, yerler, hikâyeler ve 360° mekânlar artık kendi sayfalarında (/kayitlar): okunabilir, paylaşılabilir ve Google'da aranabilir." },
+                { title: 'Her açıdan net 360°', desc: "Mekânlar artık sağda, solda, yukarıda ve aşağıda da net: kenarlarda görüntüyü geren perspektif düzeltildi (balık gözü), büyütülen yerler bikübik örnekleme ve netleştirmeyle çiziliyor." },
                 { title: 'Dağ zirveleri', desc: 'Yüksek dağların tepesinde kar örtüsü, dik yamaçlarında soğuk gri kaya. Kışın kar sınırı aşağı iniyor ama dik kaya yüzleri karın arasından seçiliyor; dağlar beyaza gömülüp kaybolmuyor.' },
                 { title: 'Kış ve sonbahar', desc: "Ayarlar > Tema'da Kış seçince bütün harita karla örtülüyor, kıyılar çatlaklı buz tutuyor, kar yağıyor; ağaçlar karlı. Sonbaharda çayırlar altın-kızıla dönüyor, ağaçlar kızıl ve sarı, yapraklar dönerek düşüyor. Geçiş yumuşak." },
                 { title: 'Ham haritaya sadık 3D', desc: 'Zemin artık Velutan ham haritasının kendisi (kar, doku, gölge dahil). Ağaçlar yalnızca haritada ağaç çizili yerlerde; türü (çam, karlı çam, yapraklı) ve rengi çizimden. Dağlarda ağaç yok, dağ çizimleri kabartmayla birlikte duruyor.' },
