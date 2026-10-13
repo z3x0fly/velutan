@@ -105,7 +105,7 @@ app.use('/lore', (req, res, next) => (req.method === 'GET' ? dataGuard(req, res,
 app.use('/bekci', guardRouter);
 app.use('/senkron', syncRouter);
 app.use('/geri-bildirim', feedbackRouter);
-app.get('/harita/anahtar', kasaKey);
+app.post('/oturum', kasaKey);
 
 app.get('/', (_req, res) => {
     res.json({ message: 'Velutan World Map API' });

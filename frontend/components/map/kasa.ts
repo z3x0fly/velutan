@@ -4,23 +4,43 @@ import { KASA } from './generated/kasa';
 import { API_URL, ASSET_BASE } from './media';
 
 /**
- * Harita kasası: harita verisi şifreli paketlerde (map3d/k/*.bin, AES-256-GCM). Anahtar API'den, yalnızca
- * kendi sayfalarımıza verilir; çözme tarayıcının kendi şifre birimiyle yapılır, görseller bellekte açılır
+ * Harita kasası: harita verisi şifreli paketlerde (map3d/k/*.bin, AES-256-GCM). Anahtar, yalnızca kendi
+ * sayfalarımıza, oturuma özel bir anahtar değişimiyle şifreli verilir; çözme tarayıcının kendi şifre birimiyle
+ * yapılır, görseller bellekte açılır
  * (ağ sekmesinde ya da doğrudan indirilen dosyada okunur bir görüntü yoktur).
  */
 let keyP: Promise<CryptoKey> | null = null;
+const unb64 = (t: string) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
+const b64 = (b: ArrayBuffer) => btoa(Array.from(new Uint8Array(b), (c) => String.fromCharCode(c)).join(""));
+
+/**
+ * Veri anahtarı ağdan açık geçmez: geçici ECDH (P-256) ile ortak sır, HKDF ile sarma anahtarı; sunucu veri
+ * anahtarını onunla şifreli yollar. Anahtar tarayıcıda dışa aktarılamaz bir CryptoKey olarak kalır.
+ */
+async function handshake(): Promise<CryptoKey> {
+    const subtle = crypto.subtle;
+    const pair = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']);
+    const pub = await subtle.exportKey('raw', pair.publicKey);
+    const r = await fetch(`${API_URL}/oturum`, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ p: b64(pub) }) });
+    if (!r.ok) throw new Error(`Oturum açılamadı (${r.status})`);
+    const d: { s: string; n: string; w: string } = await r.json();
+    const serverPub = await subtle.importKey('raw', unb64(d.s), { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+    const bits = await subtle.deriveBits({ name: 'ECDH', public: serverPub }, pair.privateKey, 256);
+    const hk = await subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+    const wrap = await subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: unb64(d.n), info: new TextEncoder().encode('velutan-kasa') }, hk, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    const w = unb64(d.w);
+    const raw = new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: w.subarray(0, 12) }, wrap, w.subarray(12)));
+    const key = await subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+    raw.fill(0);
+    return key;
+}
+
 function getKey() {
     if (!keyP)
-        keyP = fetch(`${API_URL}/harita/anahtar`, { cache: 'no-store' })
-            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Kasa anahtarı alınamadı (${r.status})`))))
-            .then((d: { k: string }) => {
-                const raw = Uint8Array.from(atob(d.k), (c) => c.charCodeAt(0));
-                return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
-            })
-            .catch((e) => {
-                keyP = null;
-                throw e;
-            });
+        keyP = handshake().catch((e) => {
+            keyP = null;
+            throw e;
+        });
     return keyP;
 }
 

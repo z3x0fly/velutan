@@ -1,12 +1,12 @@
 // Otomatik üretildi: node tools/pack_map.mjs — elle düzenleme.
 export const KASA: Record<string, string> = {
-    "terrain_2048.webp": "94ce2c54d98c5cd70192",
-    "terrain_4096.webp": "81e15744748f5a1af91e",
-    "height_1024.webp": "49a7e5f6ccf9e2b96185",
-    "normal_1024.webp": "018b7bf47001c461df1d",
-    "cover_1024.webp": "026bc9cd80e45e30a123",
-    "labels_atlas.webp": "a598a4a4b78a628acd74",
-    "labels.json": "3f9552bf10b929c87563",
-    "roads.json": "b1936ea0decf6e97b739",
-    "trees.bin": "ebb5e400c5e0ffbb0b2e"
+    "terrain_2048.webp": "18af1d70161dfdf0aa4a",
+    "terrain_4096.webp": "5786ee2e3941af093764",
+    "height_1024.webp": "078cdac6a00dc520a41d",
+    "normal_1024.webp": "b2d6fbb1da94ac90474d",
+    "cover_1024.webp": "5ed969c6633f52be3c39",
+    "labels_atlas.webp": "6f457e71a3604251ffc8",
+    "labels.json": "f91c9ebf6cec299c51b9",
+    "roads.json": "73ce34757efffc6614cf",
+    "trees.bin": "ef640b52ee3fb673e51f"
 };
