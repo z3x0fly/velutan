@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.7.4';
+    const PATCH_VERSION = '1.7.5';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,7 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'Resmî ölçek: Jüpiter büyüklüğünde gezegen', desc: "INTCH'ten geldi: Velutan, Jüpiter büyüklüğünde (yarıçap 69.911 km) bir gezegende, batıdan doğuya 8000 km'lik bir kıta. Haritanın ölçeği, mesafeler ve yolculuk süreleri buna göre güncellendi. Kürede kıta, dev okyanusun ortasında kendi kıyı çizgisiyle duruyor; yaklaştıkça şehirler beliriyor. Gezegen oylaması bu yüzden kapandı." },
                 { title: 'Zamanı atlat', desc: "Sağ üstteki 'Zaman' düğmesi (Witcher'daki meditasyon gibi): kadranda saati seç, 'Bekle'; zaman hızla akar, güneş batar, ay doğar. Günler, haftalar, aylar da atlatılır: ay evresi, mevsim ve gün uzunluğu nasıl değişir, gözünle gör. Düz haritada da kürede de çalışır." },
                 { title: 'Geri bildirim', desc: "Alttaki 'Görüş bildir' ile öneri, hata ya da istek yaz; ekip okur. İlk topluluk oylaması açık: Velutan gezegeni 'harita tüm gezegen' mi olsun, 'Dünya ölçeğinde kıta' mı? İkisini de dene, oyunu ver." },
                 { title: 'Küre: Velutan bir gezegen', desc: "Pusulanın yanındaki dünya düğmesiyle (ya da Ayarlar > Tema > Dünyanın şekli) harita bir gezegene dönüşür: gece-gündüz sınırı ilerler, gece yüzünde şehirler yanar, bulutlar akar, ay gerçek evresiyle döner. Bir şehre tıkla ya da yaklaş: düz haritada oraya inersin. İki gezegen kurgusu var (harita tüm gezegen / Dünya ölçeğinde kıta): hangisi kalsın, oyla!" },

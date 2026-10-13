@@ -51,7 +51,7 @@ export default function Feedback() {
 
     useEffect(() => {
         const onOpen = (e: Event) => {
-            setTab(((e as CustomEvent<Tab>).detail as Tab) || 'yaz');
+            setTab('yaz');
             setSent(false);
             setError(null);
             setOpen(true);
@@ -139,7 +139,6 @@ export default function Feedback() {
                     {(
                         [
                             ['yaz', 'Görüşünü yaz', MessageSquarePlus],
-                            ['oy', 'Oylama', Vote],
                         ] as const
                     ).map(([id, label, Icon]) => (
                         <button key={id} onClick={() => setTab(id)} className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 ${tab === id ? 'bg-[#c9a35a]/15 text-[#f1dca6]' : 'text-amber-100/50 hover:text-amber-100'}`}>

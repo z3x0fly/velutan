@@ -2,10 +2,10 @@
 
 import React, { useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
+import { useKasaTextures } from '../kasa';
 import * as THREE from 'three';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
-import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HEIGHT_URL } from '../terrain/heightField';
+import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HEIGHT_FILE } from '../terrain/heightField';
 import { dayLight } from '../dayStore';
 import { seasonUniforms } from '../seasonStore';
 
@@ -244,7 +244,7 @@ const fragmentShader = /* glsl */ `
 
 
 const Water = ({ animate = true }: { animate?: boolean }) => {
-    const height = useTexture(HEIGHT_URL);
+    const height = useKasaTextures({ height: HEIGHT_FILE }).height;
     const material = useMemo(
         () =>
             new THREE.ShaderMaterial({

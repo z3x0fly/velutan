@@ -8,7 +8,7 @@ import { TREE_STRIDE } from '../generated/mapMeta';
 import { TreeTheme, useTheme } from '../themeStore';
 import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HeightField, loadHeightField } from '../terrain/heightField';
 import { to3D, WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
-import { mapAsset } from '../media';
+import { kasaBuffer } from '../kasa';
 
 // tools/build_map_assets.py ile aynı sıra
 enum TreeKind {
@@ -18,7 +18,6 @@ enum TreeKind {
     Autumn = 3,
 }
 
-const TREE_URL = mapAsset('trees.bin');
 const BASE_SCALE = 0.15;
 
 // Tür rengi + boyalı haritadaki sembol rengi karışımı (paleti korur, 3D'de okunur kalır)
@@ -175,10 +174,9 @@ interface TreeRecord {
 
 /** fraction: çizilecek ağaç oranı; elenenler hiç işlenmez. Ana iş parçacığı her 2000 kayıtta serbest bırakılır. */
 async function loadTrees(fraction: number, bushes: boolean, segments: [number, number]): Promise<TreeRecord[]> {
-    const [res, field] = await Promise.all([fetch(TREE_URL), loadHeightField().catch(() => null)]);
+    const [buf, field] = await Promise.all([kasaBuffer('trees.bin'), loadHeightField().catch(() => null)]);
     const ground = field ? makeGroundSampler(field, segments) : null;
-    if (!res.ok) throw new Error(`Ağaç verisi yüklenemedi (${res.status})`);
-    const view = new DataView(await res.arrayBuffer());
+    const view = new DataView(buf);
     const out: TreeRecord[] = [];
     const obj = new THREE.Object3D();
     const paint = new THREE.Color();

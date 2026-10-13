@@ -2,11 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
+import { kasaJson, useKasaTextures } from '../kasa';
 import * as THREE from 'three';
 import { to3D } from '../utils/coords';
 import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE } from '../terrain/heightField';
-import { mapAsset } from '../media';
 
 interface LabelItem {
     x0: number; y0: number; x1: number; y1: number; // harita pikseli
@@ -31,13 +30,12 @@ const LIFT = 0.025;
 const Labels = () => {
     const [data, setData] = useState<LabelData | null>(null);
     const { gl } = useThree();
-    const texture = useTexture(mapAsset('labels_atlas.webp'));
+    const texture = useKasaTextures({ atlas: 'labels_atlas.webp' }).atlas;
 
     useEffect(() => {
         let alive = true;
-        fetch(mapAsset('labels.json'))
-            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-            .then((d: LabelData) => alive && setData(d))
+        kasaJson<LabelData>('labels.json')
+            .then((d) => alive && setData(d))
             .catch((err) => console.error('[Velutan] İsim katmanı yüklenemedi:', err));
         return () => {
             alive = false;

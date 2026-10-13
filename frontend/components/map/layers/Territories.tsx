@@ -2,10 +2,10 @@
 
 import React, { useEffect, useMemo } from 'react';
 import { useThree } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
+import { useKasaTextures } from '../kasa';
 import * as THREE from 'three';
 import { MAP_HEIGHT_PIXELS, MAP_WIDTH_PIXELS, WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
-import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HEIGHT_URL } from '../terrain/heightField';
+import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HEIGHT_FILE } from '../terrain/heightField';
 import { Territory, useTerritories } from '../territoryStore';
 
 const TEX_W = 2048;
@@ -75,7 +75,7 @@ function paint(ctx: CanvasRenderingContext2D, list: Territory[], focusId: number
 const Territories = React.memo(({ segments }: { segments: [number, number] }) => {
     const { list, visible, focusId } = useTerritories();
     const { invalidate } = useThree();
-    const height = useTexture(HEIGHT_URL);
+    const height = useKasaTextures({ height: HEIGHT_FILE }).height;
 
     const { canvas, texture } = useMemo(() => {
         const c = document.createElement('canvas');

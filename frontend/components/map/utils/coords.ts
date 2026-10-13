@@ -9,8 +9,8 @@ export const WORLD_WIDTH = 38.4;
 export const WORLD_HEIGHT = WORLD_WIDTH * (MAP_HEIGHT_PIXELS / MAP_WIDTH_PIXELS);
 export const SCALE_FACTOR = MAP_WIDTH_PIXELS / WORLD_WIDTH;
 
-// velutanmap.com resmi ölçeği: harita genişliği 5431 km
-export const MAP_WIDTH_KM = 5431;
+// Resmî ölçek (INTCH, velutanmap.com): kıtanın batı ucundan doğu ucuna 8000 km
+export const MAP_WIDTH_KM = 8000;
 export const KM_PER_PIXEL = MAP_WIDTH_KM / MAP_WIDTH_PIXELS;
 
 export const to3D = (x: number, y: number): [number, number, number] => [

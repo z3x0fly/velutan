@@ -15,6 +15,7 @@ import loreRouter from './routes/lore';
 import guardRouter from './routes/guard';
 import syncRouter from './routes/sync';
 import feedbackRouter from './routes/feedback';
+import { kasaKey } from './kasa';
 import { dataGuard, honeypot, poisonJson, staticGuard } from './guard';
 import { db } from './db';
 import { startSync } from './sync';
@@ -104,6 +105,7 @@ app.use('/lore', (req, res, next) => (req.method === 'GET' ? dataGuard(req, res,
 app.use('/bekci', guardRouter);
 app.use('/senkron', syncRouter);
 app.use('/geri-bildirim', feedbackRouter);
+app.get('/harita/anahtar', kasaKey);
 
 app.get('/', (_req, res) => {
     res.json({ message: 'Velutan World Map API' });

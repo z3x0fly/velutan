@@ -21,3 +21,7 @@ art/cache/
 tools/imza.key
 backend/data/
 __pycache__/
+tools/kasa.key
+# Ham harita verisi yalnızca yerelde; sunucuya şifreli paketler (map3d/k) gider
+frontend/public/map3d/*.*
+!frontend/public/map3d/k/

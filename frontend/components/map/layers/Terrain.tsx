@@ -2,13 +2,12 @@
 
 import React, { useEffect, useMemo } from 'react';
 import { useThree } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
+import { useKasaTextures } from '../kasa';
 import * as THREE from 'three';
 import { seasonUniforms } from '../seasonStore';
 import { CLOUD_GLSL, cloudUniforms } from '../cloudField';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../utils/coords';
-import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HEIGHT_URL } from '../terrain/heightField';
-import { mapAsset } from '../media';
+import { DISPLACEMENT_BIAS, DISPLACEMENT_SCALE, HEIGHT_FILE } from '../terrain/heightField';
 
 interface TerrainProps {
     textureSize: 4096 | 2048;
@@ -34,11 +33,11 @@ const Terrain = React.memo(({ textureSize: size, segments, normalMap: withNormal
     // Girdi nesnesi sabit olmalı: her render'da yeni nesne giderse drei dokuları yeniden
     // GPU'ya yükler (zoom sırasında 4096px dokunun sürekli yüklenmesi = kasma).
     const urls = useMemo(() => {
-        const u: Record<string, string> = { map: mapAsset(`terrain_${size}.webp`), height: HEIGHT_URL };
-        if (withNormal) u.normal = mapAsset('normal_1024.webp');
+        const u: Record<string, string> = { map: `terrain_${size}.webp`, height: HEIGHT_FILE };
+        if (withNormal) u.normal = 'normal_1024.webp';
         return u;
     }, [size, withNormal]);
-    const textures = useTexture(urls) as Record<string, THREE.Texture>;
+    const textures = useKasaTextures(urls) as Record<string, THREE.Texture>;
     const { map, height } = textures;
     const normal = textures.normal ?? FLAT_NORMAL!;
 

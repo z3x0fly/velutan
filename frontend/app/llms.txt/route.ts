@@ -13,7 +13,7 @@ export async function GET() {
         '',
         "> Velutan fantezi FRP evreninin (yaratıcısı Swaggybark) interaktif 3D dünya haritası. Bölgeler, kronikler, karakterler, 360° mekân gezintisi, seyahat/mesafe hesaplayıcı ve zar tepsisi içerir. Türkçedir.",
         '',
-        'Harita WebGL ile çizilir; metin içerik bölge sayfalarındadır. Ölçek: harita genişliği 5431 km.',
+        'Harita WebGL ile çizilir; metin içerik bölge sayfalarındadır. Ölçek: kıtanın genişliği 8000 km; gezegen Jüpiter büyüklüğünde.',
         'İçerik kaynakları: Velutan Fandom Wiki (https://velutan.fandom.com/tr) ve velutanmap.com (360° panoramalar).',
         '',
         '## Ana sayfalar',

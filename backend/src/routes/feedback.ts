@@ -32,7 +32,7 @@ const KINDS = ['oneri', 'hata', 'istek', 'diger', 'oy'] as const;
 const STATUSES = ['yeni', 'okundu', 'yapildi', 'reddedildi'] as const;
 /** Açık oylamalar ve seçenekleri */
 export const POLLS: Record<string, { title: string; options: Record<string, string> }> = {
-    gezegen: { title: 'Velutan gezegeni nasıl olsun?', options: { tam: 'Harita tüm gezegen', kita: 'Dünya ölçeğinde kıta' } },
+    // gezegen oylaması kapandı: resmî ölçü geldi (Jüpiter büyüklüğünde gezegen, 8000 km kıta)
 };
 
 const SALT = process.env.GUARD_SECRET || 'velutan-geri-bildirim';

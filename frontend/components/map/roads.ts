@@ -1,4 +1,4 @@
-import { mapAsset } from './media';
+import { kasaJson } from './kasa';
 import type { MapPoint } from './types';
 
 /**
@@ -22,9 +22,8 @@ let cached: Promise<RoadGraph> | null = null;
 
 export function loadRoads(): Promise<RoadGraph> {
     if (!cached) {
-        cached = fetch(mapAsset('roads.json'))
-            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Yol verisi yüklenemedi (${r.status})`))))
-            .then((d: { nodes: number[]; edges: number[] }) => {
+        cached = kasaJson<{ nodes: number[]; edges: number[] }>('roads.json')
+            .then((d) => {
                 const n = d.nodes.length / 2;
                 const x = new Int32Array(n);
                 const y = new Int32Array(n);

@@ -4,8 +4,9 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { mapAsset } from './media';
-import { getPlanetModel, latLonToPixel, MAP_CENTER_LON, mapBounds, mapCenterLat, pixelToLatLon, planetRadiusKm, sky, SYNODIC_MONTH, sunDeclination, todayOfYear } from './astro';
+import { kasaBitmap } from './kasa';
+import { latLonToPixel, MAP_CENTER_LON, mapBounds, mapCenterLat, pixelToLatLon, planetRadiusKm, sky, SYNODIC_MONTH, sunDeclination } from './astro';
+import { MAP_HEIGHT_PIXELS, MAP_WIDTH_PIXELS } from './utils/coords';
 import { themeStore } from './themeStore';
 import { skyTime } from './skyClock';
 import { dayStore } from './dayStore';
@@ -13,8 +14,8 @@ import { dayLength } from './astro';
 import type { Region } from './types';
 
 /**
- * Küre (gezegen) görünümü. Velutan haritası, Dünya ölçüsündeki gezegenin kuzey yarımküresinde gerçek enlem/boylam
- * yerinde (≈16°K..60°K, 31°B..31°D). Güneş gerçek gökyüzü mekaniğiyle (astro.ts): mevsime göre deklinasyon,
+ * Küre (gezegen) görünümü. Velutan, Jüpiter büyüklüğündeki gezegenin kuzey yarımküresinde 8000 km'lik bir kıta
+ * (≈35°K..41°K, ≈4°B..4°D): ayrı, keskin bir yama olarak kürenin üstüne oturur. Güneş gerçek gökyüzü mekaniğiyle (astro.ts): mevsime göre deklinasyon,
  * saate göre boylam; gece-gündüz sınırı gezegende ilerler. Gece yüzünde şehirler yanar. Ay, gerçek evresiyle
  * aynı güneşten aydınlanır (evre kendiliğinden doğru görünür). 
  * Bir yere tıklayınca ya da çok yaklaşınca düz haritada oraya inilir.
@@ -34,84 +35,86 @@ function vecToLatLon(v: THREE.Vector3) {
     return { lat: THREE.MathUtils.radToDeg(Math.asin(n.y)), lon: THREE.MathUtils.radToDeg(Math.atan2(-n.z, n.x)) };
 }
 
-/** Gezegen dokusu: okyanus + harita (kenarları yumuşak) ve gece ışıkları (şehirler) */
+interface PlanetTex {
+    /** Okyanus gezegeni (eşdikdörtgen) */
+    ocean: THREE.CanvasTexture;
+    /** Kıta: harita (kenarları yumuşak) ve gece ışıkları (şehirler); kıta yamasının kendi uv'siyle */
+    land: THREE.CanvasTexture;
+    lights: THREE.CanvasTexture;
+    none: THREE.DataTexture;
+}
+
+/** Gezegen dokuları: okyanus ve kutup buzulları; kıta ayrı ve keskin (gezegenin yanında çok küçük) */
 function usePlanetTextures(regions: Region[]) {
-    const [tex, setTex] = useState<{ day: THREE.CanvasTexture; lights: THREE.CanvasTexture } | null>(null);
+    const [tex, setTex] = useState<PlanetTex | null>(null);
     useEffect(() => {
         let alive = true;
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
+        kasaBitmap('terrain_4096.webp').then((img) => {
             if (!alive) return;
-            const W = 8192, H = 4096;
+            const W = 4096, H = 2048;
             const c = document.createElement('canvas');
             c.width = W;
             c.height = H;
             const g = c.getContext('2d')!;
-            const fx = img.width * MAP_FRAME, fy = img.height * MAP_FRAME;
-            if (getPlanetModel() === 'tam') {
-                // Harita bütün gezegeni kaplar: eşdikdörtgen (360° x 180°), çerçeve kırpılır
-                g.drawImage(img, fx, fy, img.width - 2 * fx, img.height - 2 * fy, 0, 0, W, H);
-            } else {
-                // Dünya ölçüsünde gezegen: okyanus, kutup buzulları; harita kendi enlem/boylam penceresinde bir kıta
-                g.fillStyle = '#34424d';
-                g.fillRect(0, 0, W, H);
-                for (let i = 0; i < 2600; i++) {
-                    const x = Math.random() * W, y = Math.random() * H, r = 20 + Math.random() * 160;
-                    const gr = g.createRadialGradient(x, y, 0, x, y, r);
-                    gr.addColorStop(0, `rgba(${Math.random() < 0.5 ? '70,86,96' : '38,48,58'},0.18)`);
-                    gr.addColorStop(1, 'rgba(0,0,0,0)');
-                    g.fillStyle = gr;
-                    g.fillRect(x - r, y - r, r * 2, r * 2);
-                }
-                for (const [from, to] of [[0, H * 0.12], [H, H * 0.86]]) {
-                    const ice = g.createLinearGradient(0, from, 0, to);
-                    ice.addColorStop(0, 'rgba(232,238,242,1)');
-                    ice.addColorStop(1, 'rgba(232,238,242,0)');
-                    g.fillStyle = ice;
-                    g.fillRect(0, Math.min(from, to), W, Math.abs(to - from));
-                }
-                const b = mapBounds();
-                const x0 = ((b.lonW + 180) / 360) * W, x1 = ((b.lonE + 180) / 360) * W;
-                const y0 = ((90 - b.latN) / 180) * H, y1 = ((90 - b.latS) / 180) * H;
-                const mw = Math.round(x1 - x0), mh = Math.round(y1 - y0);
-                const m = document.createElement('canvas');
-                m.width = mw;
-                m.height = mh;
-                const mg = m.getContext('2d')!;
-                mg.drawImage(img, fx, fy, img.width - 2 * fx, img.height - 2 * fy, 0, 0, mw, mh);
-                mg.globalCompositeOperation = 'destination-in';
-                const feather = Math.min(mw, mh) * 0.06;
-                for (const [gx0, gy0, gx1, gy1] of [[0, 0, feather, 0], [mw, 0, mw - feather, 0], [0, 0, 0, feather], [0, mh, 0, mh - feather]]) {
-                    const lg = mg.createLinearGradient(gx0, gy0, gx1, gy1);
-                    lg.addColorStop(0, 'rgba(0,0,0,0)');
-                    lg.addColorStop(1, 'rgba(0,0,0,1)');
-                    mg.fillStyle = lg;
-                    mg.fillRect(0, 0, mw, mh);
-                }
-                g.drawImage(m, x0, y0);
+            g.fillStyle = '#40464d';
+            g.fillRect(0, 0, W, H);
+            for (let i = 0; i < 2600; i++) {
+                const x = Math.random() * W, y = Math.random() * H, r = 10 + Math.random() * 90;
+                const gr = g.createRadialGradient(x, y, 0, x, y, r);
+                gr.addColorStop(0, `rgba(${Math.random() < 0.5 ? '84,92,100' : '46,52,60'},0.16)`);
+                gr.addColorStop(1, 'rgba(0,0,0,0)');
+                g.fillStyle = gr;
+                g.fillRect(x - r, y - r, r * 2, r * 2);
             }
-            const day = new THREE.CanvasTexture(c);
-            day.colorSpace = THREE.SRGBColorSpace;
-            day.anisotropy = 8;
-            // Gece ışıkları: şehir, başkent, kale büyüklüğüne göre parıltı
+            for (const [from, to] of [[0, H * 0.12], [H, H * 0.86]]) {
+                const ice = g.createLinearGradient(0, from, 0, to);
+                ice.addColorStop(0, 'rgba(232,238,242,1)');
+                ice.addColorStop(1, 'rgba(232,238,242,0)');
+                g.fillStyle = ice;
+                g.fillRect(0, Math.min(from, to), W, Math.abs(to - from));
+            }
+            const ocean = new THREE.CanvasTexture(c);
+            ocean.colorSpace = THREE.SRGBColorSpace;
+            ocean.anisotropy = 8;
+
+            // Kıta: harita, çerçevesi kırpılmış, kenarları okyanusa karışır
+            const fx = img.width * MAP_FRAME, fy = img.height * MAP_FRAME;
+            const mw = 4096, mh = Math.round((4096 * (img.height - 2 * fy)) / (img.width - 2 * fx));
+            const m = document.createElement('canvas');
+            m.width = mw;
+            m.height = mh;
+            const mg = m.getContext('2d')!;
+            mg.drawImage(img, fx, fy, img.width - 2 * fx, img.height - 2 * fy, 0, 0, mw, mh);
+            mg.globalCompositeOperation = 'destination-in';
+            const feather = Math.min(mw, mh) * 0.05;
+            for (const [gx0, gy0, gx1, gy1] of [[0, 0, feather, 0], [mw, 0, mw - feather, 0], [0, 0, 0, feather], [0, mh, 0, mh - feather]]) {
+                const lg = mg.createLinearGradient(gx0, gy0, gx1, gy1);
+                lg.addColorStop(0, 'rgba(0,0,0,0)');
+                lg.addColorStop(1, 'rgba(0,0,0,1)');
+                mg.fillStyle = lg;
+                mg.fillRect(0, 0, mw, mh);
+            }
+            const land = new THREE.CanvasTexture(m);
+            land.colorSpace = THREE.SRGBColorSpace;
+            land.anisotropy = 8;
+
+            // Gece ışıkları: şehir, başkent, kale büyüklüğüne göre parıltı (harita pikselinde)
             const lc = document.createElement('canvas');
-            lc.width = 4096;
-            lc.height = 2048;
+            lc.width = 2048;
+            lc.height = Math.round((2048 * mh) / mw);
             const lg = lc.getContext('2d')!;
             lg.fillStyle = '#000';
             lg.fillRect(0, 0, lc.width, lc.height);
+            const sx = lc.width / MAP_WIDTH_PIXELS, sy = lc.height / MAP_HEIGHT_PIXELS;
             for (const r of regions) {
-                const { lat, lon } = pixelToLatLon(r.x, r.y);
-                const px = ((lon + 180) / 360) * lc.width, py = ((90 - lat) / 180) * lc.height;
-                const size = r.type === 'capital' ? 26 : r.type === 'city' ? 16 : r.type === 'fortress' ? 10 : 6;
+                const px = r.x * sx, py = r.y * sy;
+                const size = r.type === 'capital' ? 22 : r.type === 'city' ? 13 : r.type === 'fortress' ? 8 : 5;
                 const gr = lg.createRadialGradient(px, py, 0, px, py, size);
                 gr.addColorStop(0, 'rgba(255,214,140,1)');
                 gr.addColorStop(0.35, 'rgba(255,170,80,0.55)');
                 gr.addColorStop(1, 'rgba(255,140,40,0)');
                 lg.fillStyle = gr;
                 lg.fillRect(px - size, py - size, size * 2, size * 2);
-                // Çevre köyler: küçük benekler
                 for (let k = 0; k < (r.type === 'capital' ? 14 : 5); k++) {
                     const a = Math.random() * Math.PI * 2, d = size * (0.8 + Math.random() * 2.2);
                     lg.fillStyle = 'rgba(255,190,110,0.5)';
@@ -119,17 +122,21 @@ function usePlanetTextures(regions: Region[]) {
                 }
             }
             const lights = new THREE.CanvasTexture(lc);
-            setTex({ day, lights });
-        };
-        img.src = mapAsset('terrain_2048.webp');
+            const none = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+            none.needsUpdate = true;
+            setTex({ ocean, land, lights, none });
+            img.close();
+        });
         return () => {
             alive = false;
         };
     }, [regions]);
-    useEffect(() => () => {
-        tex?.day.dispose();
-        tex?.lights.dispose();
-    }, [tex]);
+    useEffect(
+        () => () => {
+            if (tex) Object.values(tex).forEach((t) => t.dispose());
+        },
+        [tex],
+    );
     return tex;
 }
 
@@ -171,6 +178,41 @@ const PLANET_FRAG = /* glsl */ `
         #include <colorspace_fragment>
     }`;
 
+const LAND_VERT = /* glsl */ `
+    varying vec3 vN;
+    varying vec3 vWorld;
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        vN = normalize(mat3(modelMatrix) * normal);
+        vec4 w = modelMatrix * vec4(position, 1.0);
+        vWorld = w.xyz;
+        gl_Position = projectionMatrix * viewMatrix * w;
+    }`;
+const LAND_FRAG = /* glsl */ `
+    uniform sampler2D dayMap;
+    uniform sampler2D lightsMap;
+    uniform vec3 sunDir;
+    varying vec3 vN;
+    varying vec2 vUv;
+    void main() {
+        vec4 tex = texture2D(dayMap, vUv);
+        vec3 col = tex.rgb;
+        // Haritanın denizi (gri-mavi) okyanusa karışır
+        float lum = dot(col, vec3(0.299, 0.587, 0.114));
+        float sea = smoothstep(-0.03, 0.02, col.b - col.r) * (1.0 - smoothstep(0.38, 0.48, lum));
+        tex.a *= 1.0 - sea * 0.96;
+        vec3 n = normalize(vN);
+        float ndl = dot(n, sunDir);
+        float dayK = smoothstep(-0.08, 0.18, ndl);
+        vec3 lit = col * (0.06 + 1.05 * max(ndl, 0.0));
+        float twilight = smoothstep(-0.1, 0.0, ndl) * (1.0 - smoothstep(0.0, 0.12, ndl));
+        lit += vec3(0.4, 0.18, 0.06) * twilight * 0.08;
+        vec3 night = col * vec3(0.06, 0.08, 0.14) + texture2D(lightsMap, vUv).rgb * 1.6;
+        gl_FragColor = vec4(mix(night, lit, dayK), tex.a);
+        #include <colorspace_fragment>
+    }`;
+
 const CLOUD_FRAG = /* glsl */ `
     uniform vec3 sunDir;
     uniform float time;
@@ -185,10 +227,10 @@ const CLOUD_FRAG = /* glsl */ `
     void main() {
         vec3 n = normalize(vN);
         // Rüzgâr: enleme göre doğuya/batıya kayan bantlar
-        float ang = time * 0.004 * (n.y > 0.5 || n.y < -0.5 ? 1.0 : -0.7);
+        float ang = time * 0.004 * mix(-0.7, 1.0, smoothstep(0.35, 0.65, abs(n.y)));
         vec3 p = vec3(n.x * cos(ang) - n.z * sin(ang), n.y, n.x * sin(ang) + n.z * cos(ang));
-        float d = fbm(p * 3.2 + fbm(p * 1.6) * 1.2);
-        float c = smoothstep(0.52, 0.72, d);
+        float d = fbm(p * 26.0 + fbm(p * 9.0) * 1.4);
+        float c = smoothstep(0.58, 0.8, d);
         float ndl = dot(n, sunDir);
         float lit = smoothstep(-0.1, 0.25, ndl);
         gl_FragColor = vec4(vec3(0.95, 0.96, 1.0) * (0.12 + 0.88 * lit), c * 0.85);
@@ -221,16 +263,23 @@ function Planet({ regions, onPick }: { regions: Region[]; onPick: (r: Region) =>
         const planet = new THREE.ShaderMaterial({ vertexShader: PLANET_VERT, fragmentShader: PLANET_FRAG, uniforms: { dayMap: { value: null }, lightsMap: { value: null }, sunDir: { value: sunDir } } });
         const clouds = new THREE.ShaderMaterial({ vertexShader: PLANET_VERT, fragmentShader: CLOUD_FRAG, uniforms: { sunDir: { value: sunDir }, time: { value: 0 } }, transparent: true, depthWrite: false });
         const moon = new THREE.ShaderMaterial({ vertexShader: PLANET_VERT, fragmentShader: MOON_FRAG, uniforms: { sunDir: { value: sunDir } } });
-        return { planet, clouds, moon };
+        const land = new THREE.ShaderMaterial({ vertexShader: LAND_VERT, fragmentShader: LAND_FRAG, uniforms: { dayMap: { value: null }, lightsMap: { value: null }, sunDir: { value: sunDir } }, transparent: true, depthWrite: false });
+        return { planet, clouds, moon, land };
     }, [sunDir]);
     useEffect(() => {
         if (!tex) return;
-        mats.planet.uniforms.dayMap.value = tex.day;
-        mats.planet.uniforms.lightsMap.value = tex.lights;
+        mats.planet.uniforms.dayMap.value = tex.ocean;
+        mats.planet.uniforms.lightsMap.value = tex.none;
+        mats.land.uniforms.dayMap.value = tex.land;
+        mats.land.uniforms.lightsMap.value = tex.lights;
     }, [tex, mats]);
     useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
     // Küreden çıkınca saat göstergesi düz haritanın gün döngüsüne bırakılır
     useEffect(() => () => dayStore.publish({ active: false, hour: 13, night: 0, day: null, sunElevation: 50, moonPhase: 0, dayLength: 12 }), []);
+    const land = useMemo(() => {
+        const b = mapBounds();
+        return [R * 1.0001, 256, 192, Math.PI + deg(b.lonW), deg(b.lonE - b.lonW), deg(90 - b.latN), deg(b.latN - b.latS)] as [number, number, number, number, number, number, number];
+    }, []);
     const moonRef = useRef<THREE.Mesh>(null);
     const [info, setInfo] = useState('');
 
@@ -248,7 +297,7 @@ function Planet({ regions, onPick }: { regions: Region[]; onPick: (r: Region) =>
         if (moonRef.current) latLonToVec(dec * Math.cos(phase * Math.PI * 2), moonLon, moonRef.current.position).multiplyScalar(R * 7);
         const s = sky(doy, hour, days);
         dayStore.publish({ active: true, hour, night: 0, day: null, sunElevation: s.sun.elevation, moonPhase: s.phase, dayLength: dayLength(mapCenterLat(), doy) });
-        const txt = `Gezegen yarıçapı ${Math.round(planetRadiusKm())} km · haritanın ortasında güneş ${s.sun.elevation.toFixed(0)}° · ay %${Math.round(s.illumination * 100)}`;
+        const txt = `Jüpiter büyüklüğünde gezegen (yarıçap ${planetRadiusKm().toLocaleString('tr-TR')} km) · kıta 8000 km · haritanın ortasında güneş ${s.sun.elevation.toFixed(0)}° · ay %${Math.round(s.illumination * 100)}`;
         if (txt !== info) setInfo(txt);
     });
 
@@ -259,7 +308,7 @@ function Planet({ regions, onPick }: { regions: Region[]; onPick: (r: Region) =>
                 .filter((r) => ['capital', 'city', 'fortress'].includes(r.type ?? ''))
                 .map((r) => {
                     const { lat, lon } = pixelToLatLon(r.x, r.y);
-                    return { r, pos: latLonToVec(lat, lon).multiplyScalar(R * 1.004) };
+                    return { r, pos: latLonToVec(lat, lon).multiplyScalar(R * 1.0008) };
                 }),
         [regions],
     );
@@ -269,7 +318,10 @@ function Planet({ regions, onPick }: { regions: Region[]; onPick: (r: Region) =>
             <mesh material={mats.planet}>
                 <sphereGeometry args={[R, 192, 96]} />
             </mesh>
-            <mesh material={mats.clouds} scale={1.012}>
+            <mesh material={mats.land} renderOrder={1}>
+                <sphereGeometry args={land} />
+            </mesh>
+            <mesh material={mats.clouds} scale={1.0005}>
                 <sphereGeometry args={[R, 128, 64]} />
             </mesh>
             <mesh ref={moonRef} material={mats.moon}>
@@ -297,7 +349,10 @@ function GlobeMarker({ pos, region, onPick }: { pos: THREE.Vector3; region: Regi
         ref.current.style.opacity = facing > 0.15 ? String(Math.min(1, (facing - 0.15) * 4)) : '0';
         ref.current.style.pointerEvents = facing > 0.25 ? 'auto' : 'none';
         // Uzaktan yalnızca nokta (isimler üst üste binmesin); yaklaşınca isim (başkentler biraz daha erken)
-        const near = camera.position.length() < R * (region.type === 'capital' ? 2.6 : 1.9);
+        const d = camera.position.length() / R;
+        const near = d < (region.type === 'capital' ? 1.32 : 1.1);
+        const show = d < (region.type === 'capital' ? 9 : region.type === 'city' ? 1.6 : 1.25);
+        if (!show) ref.current.style.opacity = '0';
         const label = ref.current.querySelector<HTMLElement>('[data-label]');
         if (label) label.style.display = near ? 'block' : 'none';
     });
@@ -340,13 +395,25 @@ function exitTo(px: number, py: number) {
     setTimeout(() => window.dispatchEvent(new CustomEvent('velutan:fly', { detail: { x: px, y: py } })), 2200);
 }
 
+/** Yüzeye yaklaştıkça döndürme yavaşlar (dev gezegende kıta küçük; sürükleyince kaçmasın) */
+function NearSurface() {
+    const { camera, controls } = useThree() as unknown as { camera: THREE.Camera; controls: { rotateSpeed: number; zoomSpeed: number } | null };
+    useFrame(() => {
+        if (!controls) return;
+        const h = camera.position.length() / R - 1;
+        controls.rotateSpeed = THREE.MathUtils.clamp(h * 0.6, 0.02, 0.45);
+        controls.zoomSpeed = THREE.MathUtils.clamp(0.3 + h * 0.5, 0.3, 0.7);
+    });
+    return null;
+}
+
 function ZoomExit() {
     const { camera } = useThree();
     const done = useRef(false);
     useFrame(() => {
         if (done.current) return;
         // Çok yaklaşınca: altındaki noktaya düz haritada in
-        if (camera.position.length() < R * 1.22) {
+        if (camera.position.length() < R * 1.03) {
             done.current = true;
             const { lat, lon } = vecToLatLon(camera.position);
             const p = latLonToPixel(lat, lon);
@@ -357,14 +424,15 @@ function ZoomExit() {
 }
 
 export default function GlobeCanvas({ regions }: { regions: Region[] }) {
-    const start = useMemo(() => latLonToVec(getPlanetModel() === 'tam' ? 20 : 34, MAP_CENTER_LON).multiplyScalar(R * 3.1), []);
+    const start = useMemo(() => latLonToVec(mapCenterLat() - 6, MAP_CENTER_LON).multiplyScalar(R * 2.6), []);
     return (
         <div className="h-full w-full bg-black">
-            <Canvas camera={{ fov: 40, near: 0.05, far: 600, position: start.toArray() }} dpr={[1, 2]} flat>
+            <Canvas camera={{ fov: 40, near: 0.02, far: 600, position: start.toArray() }} dpr={[1, 2]} flat>
                 <Suspense fallback={null}>
                     <Planet regions={regions} onPick={(r) => exitTo(r.x, r.y)} />
                 </Suspense>
-                <OrbitControls enablePan={false} minDistance={R * 1.15} maxDistance={R * 8} rotateSpeed={0.45} zoomSpeed={0.7} enableDamping dampingFactor={0.08} />
+                <OrbitControls makeDefault enablePan={false} minDistance={R * 1.02} maxDistance={R * 8} rotateSpeed={0.45} zoomSpeed={0.7} enableDamping dampingFactor={0.08} />
+                <NearSurface />
                 <ZoomExit />
             </Canvas>
         </div>
