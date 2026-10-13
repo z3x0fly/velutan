@@ -310,7 +310,7 @@ const Traveler = ({ posRef, groundRef, headRef }: { posRef: React.MutableRefObje
     );
 };
 
-const TRAVELER_LABEL: Record<Ground, string> = { plain: 'Ova', forest: 'Orman', rough: 'Sarp yamaç', marsh: 'Bataklık', mountain: 'Dağ geçidi', water: 'Gemiyle' };
+const TRAVELER_LABEL: Record<Ground, string> = { plain: 'Ova', forest: 'Orman', mud: 'Çamurda', rough: 'Sarp yamaç', marsh: 'Bataklık', mountain: 'Dağ geçidi', water: 'Gemiyle' };
 
 const LoadingLabel = () => (
     <Html center>

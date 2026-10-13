@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { skyClock, skyTime } from './skyClock';
 import { HeightField, loadHeightField } from './terrain/heightField';
 import { analyzeRoute, RouteAnalysis } from './travelAnalysis';
 import type { MapPoint } from './types';
@@ -11,7 +12,11 @@ import { CoverField, loadCoverField } from './terrain/coverField';
  * Rota analizi (mesafe, zemin, süre). Yükselti haritası yalnızca rota çizilmeye başlanınca yüklenir;
  * three.js gerektirmez, ana sayfa paketinde kalabilir.
  */
+/** Gökyüzü takvimine göre haftanın günü (yılın günü, haftaya yuvarlı): zaman atlatılınca çamur değişir */
+const weekDoy = () => Math.floor(skyTime().doy / 7) * 7 + 3;
+
 export function useRouteAnalysis(path: MapPoint[], pace: string, followRoads = true): RouteAnalysis | null {
+    const doy = useSyncExternalStore(skyClock.subscribe, weekDoy, () => 180);
     const [field, setField] = useState<HeightField | null>(null);
     const [roads, setRoads] = useState<RoadGraph | null>(null);
     const [cover, setCover] = useState<CoverField | null>(null);
@@ -48,5 +53,5 @@ export function useRouteAnalysis(path: MapPoint[], pace: string, followRoads = t
             alive = false;
         };
     }, [need, field]);
-    return useMemo(() => (field && path.length > 0 ? analyzeRoute(path, field, pace, followRoads ? roads : null, cover) : null), [field, path, pace, followRoads, roads, cover]);
+    return useMemo(() => (field && path.length > 0 ? analyzeRoute(path, field, pace, followRoads ? roads : null, cover, doy) : null), [field, path, pace, followRoads, roads, cover, doy]);
 }

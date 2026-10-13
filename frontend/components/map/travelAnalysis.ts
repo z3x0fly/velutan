@@ -9,12 +9,13 @@ import { RoadGraph, roadLeg } from './roads';
  * (düz / sarp / dağ / deniz) yükseklik ve eğimden çıkarılır. Mesafe, süre, çizgi ve simülasyon
  * hep aynı örneklerden beslenir: ekranda görünen ile hesaplanan aynı şeydir.
  */
-export type Ground = 'plain' | 'forest' | 'rough' | 'marsh' | 'mountain' | 'water';
+export type Ground = 'plain' | 'forest' | 'mud' | 'rough' | 'marsh' | 'mountain' | 'water';
 
-export const GROUND_LABEL: Record<Ground, string> = { plain: 'Düz', forest: 'Orman', rough: 'Sarp', marsh: 'Bataklık', mountain: 'Dağ', water: 'Deniz' };
+export const GROUND_LABEL: Record<Ground, string> = { plain: 'Düz', forest: 'Orman', mud: 'Çamur', rough: 'Sarp', marsh: 'Bataklık', mountain: 'Dağ', water: 'Deniz' };
 export const GROUND_COLOR: Record<Ground, string> = {
     plain: '#c9a24d',
     forest: '#6b8a3e',
+    mud: '#7a5a3a',
     rough: '#a8743a',
     marsh: '#5f7d72',
     mountain: '#8a8f99',
@@ -22,11 +23,12 @@ export const GROUND_COLOR: Record<Ground, string> = {
 };
 // Kara yolculuğunda tempo çarpanı (velutanmap.com temposuyla uyumlu: dağ 0.4, sarp 0.7); orman ve bataklık
 // ham haritadaki çizimden (ağaç ve saz/çimen tutamları) okunur
-export const GROUND_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, forest: 0.75, rough: 0.7, marsh: 0.5, mountain: 0.4 };
+export const GROUND_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, forest: 0.75, mud: 0.6, rough: 0.7, marsh: 0.5, mountain: 0.4 };
 // Denizde gemiyle; yürüme temposundan bağımsız
 export const SHIP_KM_PER_DAY = 110;
 // Yolda: sarp arazide ve dağ geçidinde yol işi kolaylaştırır (ovada fark yok)
-export const ROAD_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, forest: 1, rough: 0.85, marsh: 0.8, mountain: 0.65 };
+// Çamurda toprak yol da batar (taş döşeli değil): yol yine de biraz kurtarır
+export const ROAD_MULT: Record<Exclude<Ground, 'water'>, number> = { plain: 1, forest: 1, mud: 0.8, rough: 0.85, marsh: 0.8, mountain: 0.65 };
 export const PACE_KM_PER_DAY: Record<string, number> = { slow: 30, normal: 45, fast: 60 };
 
 const STEP_WORLD = 0.04; // ≈ 5.6 km
@@ -60,9 +62,53 @@ export interface RouteAnalysis {
     stopIndex: number[];
     /** Yol üzerinde gidilen km */
     roadKm: number;
+    /** Yola çıkılan mevsim ve toprağın ıslaklığı (çamur buna göre) */
+    season: string;
+    wetness: number;
 }
 
-export function classify(field: HeightField, x: number, z: number, cover?: CoverField | null): { y: number; ground: Ground } {
+/**
+ * Çamur mevsimi: yılın gününe göre toprağın ıslaklığı (0..1). İlkbaharda kar erir (Mart-Nisan en çamurlu),
+ * yazın kurur, sonbahar yağmurlarıyla (Ekim-Kasım) yeniden çamurlanır; kışın toprak yer yer donar.
+ */
+const WET_BY_MONTH = [0.45, 0.6, 1, 0.9, 0.5, 0.2, 0.08, 0.08, 0.3, 0.7, 0.9, 0.55];
+export function mudWetness(doy: number) {
+    const m = (((doy - 15) / 30.44) % 12 + 12) % 12;
+    const i = Math.floor(m), t = m - i;
+    return WET_BY_MONTH[i] * (1 - t) + WET_BY_MONTH[(i + 1) % 12] * t;
+}
+export function seasonOf(doy: number) {
+    const m = Math.floor((((doy - 1) / 30.44) % 12 + 12) % 12);
+    return m < 2 || m === 11 ? 'kış' : m < 5 ? 'ilkbahar' : m < 8 ? 'yaz' : 'sonbahar';
+}
+// Kışın donan kuzey (haritanın kuzey yarısı, -z): çamur yerine donmuş toprak
+const isWinter = (doy: number) => doy < 60 || doy > 334;
+const hash2 = (x: number, z: number) => {
+    const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
+    return s - Math.floor(s);
+};
+/** Alçak, düz, suya ya da bataklığa yakın toprak: ıslak mevsimde çamur (lekeli; her yer değil) */
+function isMud(field: HeightField, x: number, z: number, h: number, slope: number, cover: CoverField | null | undefined, doy: number) {
+    if (h > 0.24 || slope > 0.35) return false;
+    let wet = mudWetness(doy);
+    if (isWinter(doy) && z < 0) wet *= 0.25;
+    if (wet < 0.3) return false;
+    let near = 0;
+    for (const r of [0.06, 0.12])
+        for (let k = 0; k < 8; k++) {
+            const a = (k / 8) * Math.PI * 2;
+            if (field.sample(x + Math.cos(a) * r, z + Math.sin(a) * r) < 0.015) near = Math.max(near, r < 0.1 ? 1 : 0.7);
+        }
+    const marsh = cover ? cover.sample(x, z).marsh : 0;
+    if (marsh > 0.2) near = Math.max(near, 0.85);
+    if (!near) return false;
+    const low = 1 - Math.max(0, (h - 0.08) / 0.16);
+    // Küme küme: ~15 km'lik lekeler
+    const patch = 0.55 + 0.45 * hash2(Math.floor(x / 0.11), Math.floor(z / 0.11));
+    return wet * near * low * patch > 0.32;
+}
+
+export function classify(field: HeightField, x: number, z: number, cover?: CoverField | null, doy?: number): { y: number; ground: Ground } {
     const h = field.sample(x, z);
     if (h < 0.015) return { y: 0, ground: 'water' };
     const gx = (field.sample(x + SLOPE_EPS, z) - field.sample(x - SLOPE_EPS, z)) / (2 * SLOPE_EPS);
@@ -73,15 +119,16 @@ export function classify(field: HeightField, x: number, z: number, cover?: Cover
     if (cover && ground !== 'mountain') {
         const c = cover.sample(x, z);
         if (c.marsh > 0.5) return { y: h, ground: 'marsh' };
-        if (c.forest > 0.55 && ground === 'plain') return { y: h, ground: 'forest' };
+        if (c.forest > 0.55 && ground === 'plain') return doy !== undefined && isMud(field, x, z, h, slope, cover, doy) ? { y: h, ground: 'mud' } : { y: h, ground: 'forest' };
     }
+    if (ground === 'plain' && doy !== undefined && isMud(field, x, z, h, slope, cover, doy)) return { y: h, ground: 'mud' };
     return { y: h, ground };
 }
 
-export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string, roads?: RoadGraph | null, cover?: CoverField | null): RouteAnalysis {
+export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string, roads?: RoadGraph | null, cover?: CoverField | null, doy?: number): RouteAnalysis {
     const kmPerWorld = SCALE_FACTOR * KM_PER_PIXEL;
     const landSpeed = PACE_KM_PER_DAY[pace] ?? 45;
-    const byGround: Record<Ground, number> = { plain: 0, forest: 0, rough: 0, marsh: 0, mountain: 0, water: 0 };
+    const byGround: Record<Ground, number> = { plain: 0, forest: 0, mud: 0, rough: 0, marsh: 0, mountain: 0, water: 0 };
     const samples: RouteSample[] = [];
     const stopIndex: number[] = [];
     let day = 0;
@@ -89,7 +136,7 @@ export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string,
     let roadKm = 0;
 
     const push = (x: number, z: number, road = false) => {
-        const c = classify(field, x, z, cover);
+        const c = classify(field, x, z, cover, doy);
         // Yol suyun üstünden geçiyorsa köprüdür
         const ground: Ground = road && c.ground === 'water' ? 'plain' : c.ground;
         const y = c.y;
@@ -126,10 +173,10 @@ export function analyzeRoute(path: MapPoint[], field: HeightField, pace: string,
         }
         stopIndex.push(samples.length - 1);
     });
-    return { samples, km, totalDays: day, byGround, stopIndex, roadKm };
+    return { samples, km, totalDays: day, byGround, stopIndex, roadKm, season: doy !== undefined ? seasonOf(doy) : '', wetness: doy !== undefined ? mudWetness(doy) : 0 };
 }
 
-const RANK: Record<Ground, number> = { plain: 0, forest: 1, rough: 2, marsh: 3, mountain: 4, water: 5 };
+const RANK: Record<Ground, number> = { plain: 0, forest: 1, mud: 2, rough: 3, marsh: 4, mountain: 5, water: 6 };
 const harder = (a: Ground, b: Ground): Ground => {
     // Kıyıda kara-deniz geçişi: denize girilmedikçe kara sayılır
     if (a === 'water' !== (b === 'water')) return a === 'water' ? b : a;

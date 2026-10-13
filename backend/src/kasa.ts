@@ -12,9 +12,8 @@ import { isBanned, isTrusted, record } from './guard';
  * Bot, yasaklı ya da dışarıdan gelen istemciye aynı biçimde ama çözülemeyen rastgele bir yanıt döner.
  * Anahtar: KASA_KEY ortam değişkeni ya da backend/data/kasa.key (tools/pack_map.mjs üretir).
  */
-let key: Buffer | null = null;
+// Her istekte okunur (küçük dosya): anahtar yenilenince sunucuyu yeniden başlatmak gerekmez
 function loadKey() {
-    if (key) return key;
     const raw = process.env.KASA_KEY?.trim() || (() => {
         try {
             return fs.readFileSync(path.join(__dirname, '..', 'data', 'kasa.key'), 'utf8').trim();
@@ -22,8 +21,7 @@ function loadKey() {
             return '';
         }
     })();
-    key = raw ? Buffer.from(raw, 'base64') : null;
-    return key;
+    return raw ? Buffer.from(raw, 'base64') : null;
 }
 
 const b64 = (b: Buffer | Uint8Array) => Buffer.from(b).toString('base64');

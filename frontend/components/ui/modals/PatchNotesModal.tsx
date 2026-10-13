@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.7.5';
+    const PATCH_VERSION = '1.7.6';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,8 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'Taktik savaş', desc: "360° mekânlarda 'Taktik' düğmesi: sıra tabanlı, ızgarasız savaş. Her tur metre cinsinden hareket hakkı ve bir ana eylem; saldırı d20 + isabet bonusu, hedefin savunmasına karşı; Kalkan Darbesi, Yarma, Zehirli Hançer, Şifa, Ateş Topu gibi bekleme süreli yetenekler; yanma, zehir, sarsılma, siper, meydan okuma; baygın yoldaşı kaldırma. Düşmanlar kendi kararını verir. Zemin, o mekânın kendi zemininden. Haydut pususuyla ya da masadaki token'larla başlar. Ferrodoxin'in taktik savaş prototipinden esinlenildi." },
+                { title: 'Çamur', desc: "Seyahatte yeni zemin: suya ve bataklığa yakın alçak topraklar ıslak mevsimde çamurlanır ve yolculuğu yavaşlatır. İlkbaharda kar erir, sonbaharda yağmur yağar, yazın kurur, kışın kuzeyde toprak donar. Zamanı atlatırsan rota analizi de değişir." },
                 { title: 'Resmî ölçek: Jüpiter büyüklüğünde gezegen', desc: "INTCH'ten geldi: Velutan, Jüpiter büyüklüğünde (yarıçap 69.911 km) bir gezegende, batıdan doğuya 8000 km'lik bir kıta. Haritanın ölçeği, mesafeler ve yolculuk süreleri buna göre güncellendi. Kürede kıta, dev okyanusun ortasında kendi kıyı çizgisiyle duruyor; yaklaştıkça şehirler beliriyor. Gezegen oylaması bu yüzden kapandı." },
                 { title: 'Zamanı atlat', desc: "Sağ üstteki 'Zaman' düğmesi (Witcher'daki meditasyon gibi): kadranda saati seç, 'Bekle'; zaman hızla akar, güneş batar, ay doğar. Günler, haftalar, aylar da atlatılır: ay evresi, mevsim ve gün uzunluğu nasıl değişir, gözünle gör. Düz haritada da kürede de çalışır." },
                 { title: 'Geri bildirim', desc: "Alttaki 'Görüş bildir' ile öneri, hata ya da istek yaz; ekip okur. İlk topluluk oylaması açık: Velutan gezegeni 'harita tüm gezegen' mi olsun, 'Dünya ölçeğinde kıta' mı? İkisini de dene, oyunu ver." },

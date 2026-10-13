@@ -3,7 +3,7 @@
 import React from 'react';
 import { GROUND_COLOR, GROUND_LABEL, Ground, RouteAnalysis } from '../map/travelAnalysis';
 
-const ORDER: Ground[] = ['plain', 'forest', 'rough', 'marsh', 'mountain', 'water'];
+const ORDER: Ground[] = ['plain', 'forest', 'mud', 'rough', 'marsh', 'mountain', 'water'];
 
 /** Rotanın geçtiği zeminler: oranlı şerit + km dökümü (haritadaki çizgi renkleriyle aynı) */
 export default function RouteBreakdown({ route }: { route: RouteAnalysis | null }) {
@@ -27,6 +27,14 @@ export default function RouteBreakdown({ route }: { route: RouteAnalysis | null 
                     </div>
                 ))}
             </div>
+            {route.season && (
+                <p className="text-[11px] leading-snug text-zinc-500">
+                    {route.byGround.mud >= 0.5
+                        ? `Mevsim ${route.season}: toprak ıslak (%${Math.round(route.wetness * 100)}), suya yakın alçak yerler çamur. `
+                        : `Mevsim ${route.season}: toprak ${route.wetness < 0.3 ? 'kuru' : 'nemli'}, yolda çamur yok. `}
+                    İlkbaharda kar erir, sonbaharda yağmur yağar: zamanı atlatırsan değişir.
+                </p>
+            )}
             {route.roadKm >= 1 && (
                 <div className="flex items-center gap-2 text-[12px]">
                     <span className="h-0 w-2.5 shrink-0 border-t-2 border-dotted border-amber-200/80" />

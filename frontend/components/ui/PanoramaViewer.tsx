@@ -3,7 +3,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { ChevronLeft, ChevronRight, Grid3x3, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Grid3x3, Swords, X } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const TacticalBattle = dynamic(() => import('./tactics/TacticalBattle'), { ssr: false });
 import { mediaUrl } from '../map/media';
 import type { Panorama } from '../map/types';
 import BattleScene from './panorama/BattleScene';
@@ -238,6 +241,7 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
     const pano = panoramas[index];
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
     const url = useMemo(() => mediaUrl(pano?.image), [pano]);
+    const [tactics, setTactics] = useState(false);
 
     useEffect(() => {
         setStatus('loading');
@@ -451,6 +455,7 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
                 </div>
             )}
             {guideOpen && <BattleGuide onClose={() => setGuideOpen(false)} />}
+            {tactics && <TacticalBattle panoUrl={url} title={`${regionName} · ${pano.title}`} tokens={battle.tokens} onClose={() => setTactics(false)} />}
             {loreSlug && <LoreEntryModal slug={loreSlug} onClose={() => setLoreSlug(null)} onPanorama={isPlayer ? undefined : gotoPanorama} />}
             {isPlayer && <JoinDialog sess={sess} battle={battle} picking={picking && !sess.needsName} onDone={() => setPicking(false)} />}
             {setupOpen && (
@@ -505,6 +510,15 @@ const PanoramaViewer = ({ panoramas, index, regionName, regionSlug = '', onIndex
                         <PlayerSession sess={sess} battle={battle} onPick={() => setPicking(true)} />
                     ) : (
                         battle.on && <GmSession sess={sess} battle={battle} regionSlug={regionSlug} panoSlug={pano.slug} />
+                    )}
+                    {!isPlayer && (
+                        <button
+                            onClick={() => setTactics(true)}
+                            title="Taktik savaş: serbest hareket, d20, yetenekler (Ferrodoxin'den esinlenildi)"
+                            className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-black/60 px-3 py-2 text-[12px] font-black uppercase tracking-[0.15em] text-amber-400 hover:text-white"
+                        >
+                            <Swords size={16} /> <span className="hidden sm:inline">Taktik</span>
+                        </button>
                     )}
                     {!isPlayer && (
                     <button
