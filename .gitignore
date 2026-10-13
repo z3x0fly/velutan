@@ -19,3 +19,5 @@ dist/
 /backend/velutan.backup-*.db
 art/cache/
 tools/imza.key
+backend/data/
+__pycache__/

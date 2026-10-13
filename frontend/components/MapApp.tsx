@@ -27,6 +27,8 @@ import { pinStore } from './map/pinStore';
 import { sessionStore } from './ui/panorama/session';
 import { TONE_FILTER, useTheme } from './map/themeStore';
 import { DayClockBadge, NightOverlay } from './ui/DayClock';
+import { travelView, useTravelEye } from './map/travelView';
+import { Eye, Map as MapIcon } from 'lucide-react';
 
 
 
@@ -49,6 +51,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
   const [brushEnabled, setBrushEnabled] = useState(false);
   const mapRef = useRef<MapCanvas3DHandle>(null);
   const theme = useTheme();
+  const travelEye = useTravelEye();
 
   // Easter egg listesi açılışta değil, pusulaya ilk tıklanınca çekilir (ilk yükü hafifletir)
   const easterEggLoaded = useRef(false);
@@ -262,7 +265,7 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
              <div className="bg-black/90 border-2 border-amber-600/40 p-3 md:p-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] md:min-w-[280px]">
                 <div className="flex justify-between items-center mb-4 border-b border-amber-600/20 pb-2">
                     <h3 className="text-amber-500 font-serif italic font-bold tracking-widest text-sm">YOLCULUK ÖZETİ</h3>
-                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.7.0</span>
+                    <span className="text-[12px] text-amber-500/40 font-mono italic">v1.7.1</span>
                 </div>
                 
                 <div className="space-y-4">
@@ -394,6 +397,18 @@ export default function MapApp({ initialRegions = [] }: { initialRegions?: Regio
             </div>
           )}
         </div>
+
+        {/* Simülasyonda kamera: kuşbakışı ya da yolcu gözü */}
+        {isSimulating && (
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 pointer-events-auto flex overflow-hidden rounded-full border border-amber-500/40 bg-black/80 text-[12px] font-black uppercase tracking-widest shadow-xl">
+            <button onClick={() => travelView.setEye(false)} aria-pressed={!travelEye} className={`flex items-center gap-1.5 px-4 py-2 ${!travelEye ? 'bg-amber-600 text-white' : 'text-amber-300 hover:text-white'}`}>
+              <MapIcon size={14} /> Kuşbakışı
+            </button>
+            <button onClick={() => travelView.setEye(true)} aria-pressed={travelEye} className={`flex items-center gap-1.5 px-4 py-2 ${travelEye ? 'bg-amber-600 text-white' : 'text-amber-300 hover:text-white'}`}>
+              <Eye size={14} /> Yolcu gözü
+            </button>
+          </div>
+        )}
 
         {/* Sağ üst, pusulanın altı: gün döngüsü saati */}
         <div className="absolute right-3 top-[92px] md:right-8 md:top-[156px] pointer-events-auto">

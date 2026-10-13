@@ -24,6 +24,7 @@ import { loadStore } from './loadStore';
 import DayNight from './layers/DayNight';
 import Season from './layers/Season';
 import { dayClock } from './dayStore';
+import { travelView } from './travelView';
 
 // Kamera: hedef etrafında küresel koordinat. Yaklaştıkça eğim artar (Runeterra tarzı).
 const MIN_DIST = 2.2;
@@ -61,6 +62,9 @@ const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.1);
 // Her karede yeniden kullanılan geçici nesneler (çöp toplayıcı takılmalarını önler)
 const _sph = new THREE.Spherical();
 const _off = new THREE.Vector3();
+const _head = new THREE.Vector3(1, 0, 0);
+const _eyeTarget = new THREE.Vector3();
+const _eyeCam = new THREE.Vector3();
 
 /**
  * Eğim, sınırlar, sis, UI senkronu ve tekerlek zoom'u.
@@ -108,6 +112,7 @@ const CameraRig = ({
                 return;
             }
 
+            if (travelView.eye && !c.enabled) return; // Yolcu gözünde kamera simülasyonda
             zoom.current.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
             // Touchpad pinch tarayıcıda ctrlKey'li küçük değerlerle gelir: daha hassas
             const dy = THREE.MathUtils.clamp(e.deltaY * unit * (e.ctrlKey ? 6 : 1), -240, 240);
@@ -214,25 +219,90 @@ const CameraRig = ({
 };
 
 /**
- * Simülasyondaki yolcu. Konum her karede ref'ten okunur (React render'ı yok).
- * Işık kaynağı EKLENMEZ: ışık sayısı değişince tüm malzemelerin shader'ı yeniden derlenir (donma).
+ * Simülasyondaki yolcu: karada pelerinli, asalı bir yürüyüşçü (adım sallanması), denizde yelkenli. Gittiği yöne
+ * döner. Konum her karede ref'ten okunur (React render'ı yok). Işık kaynağı EKLENMEZ: ışık sayısı değişince tüm
+ * malzemelerin shader'ı yeniden derlenir (donma).
  */
-const Traveler = ({ posRef, groundRef }: { posRef: React.MutableRefObject<THREE.Vector3>; groundRef: React.MutableRefObject<Ground> }) => {
+const Traveler = ({ posRef, groundRef, headRef }: { posRef: React.MutableRefObject<THREE.Vector3>; groundRef: React.MutableRefObject<Ground>; headRef: React.MutableRefObject<THREE.Vector3> }) => {
     const group = useRef<THREE.Group>(null);
+    const walker = useRef<THREE.Group>(null);
+    const ship = useRef<THREE.Group>(null);
     const label = useRef<HTMLSpanElement>(null);
-    useFrame(() => {
-        group.current?.position.copy(posRef.current);
+    const t = useRef(0);
+    useFrame((_, delta) => {
+        const g = group.current;
+        if (!g) return;
+        t.current += Math.min(delta, 0.1);
+        g.position.copy(posRef.current);
+        if (g.position.y < 0) g.position.y = 0;
+        const h = headRef.current;
+        g.rotation.y = Math.atan2(h.x, h.z);
+        const onWater = groundRef.current === 'water';
+        if (walker.current) {
+            walker.current.visible = !onWater;
+            // Adım: yukarı-aşağı sallanma ve hafif yana yalpalama
+            walker.current.position.y = Math.abs(Math.sin(t.current * 9)) * 0.006;
+            walker.current.rotation.z = Math.sin(t.current * 9) * 0.06;
+        }
+        if (ship.current) {
+            ship.current.visible = onWater;
+            ship.current.rotation.z = Math.sin(t.current * 1.6) * 0.08;
+            ship.current.rotation.x = Math.sin(t.current * 1.1) * 0.05;
+        }
         const text = TRAVELER_LABEL[groundRef.current];
         if (label.current && label.current.textContent !== text) label.current.textContent = text;
     });
     return (
         <group ref={group}>
-            <mesh position={[0, 0.12, 0]}>
-                <sphereGeometry args={[0.07, 16, 16]} />
-                <meshBasicMaterial color="#ffb347" toneMapped={false} />
-            </mesh>
-            <Html center position={[0, 0.45, 0]} style={{ pointerEvents: 'none' }}>
-                <div className="bg-amber-600 text-white text-[12px] font-black px-3 py-1 rounded-full whitespace-nowrap shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-amber-400/50">
+            {/* Yürüyüşçü (yaklaşık 0.05 birim: haritada görünür boy) */}
+            <group ref={walker} scale={0.05}>
+                {/* Pelerin */}
+                <mesh position={[0, 0.55, 0]}>
+                    <coneGeometry args={[0.32, 1.1, 10]} />
+                    <meshStandardMaterial color="#6b2f1a" roughness={0.9} />
+                </mesh>
+                {/* Gövde ve baş */}
+                <mesh position={[0, 0.9, 0]}>
+                    <cylinderGeometry args={[0.12, 0.16, 0.5, 8]} />
+                    <meshStandardMaterial color="#8a6a45" roughness={0.9} />
+                </mesh>
+                <mesh position={[0, 1.27, 0]}>
+                    <sphereGeometry args={[0.13, 12, 10]} />
+                    <meshStandardMaterial color="#e2b48c" roughness={0.8} />
+                </mesh>
+                {/* Başlık */}
+                <mesh position={[0, 1.34, -0.02]}>
+                    <coneGeometry args={[0.17, 0.32, 10]} />
+                    <meshStandardMaterial color="#4a2414" roughness={0.9} />
+                </mesh>
+                {/* Asa */}
+                <mesh position={[0.26, 0.75, 0.08]} rotation={[0.15, 0, -0.08]}>
+                    <cylinderGeometry args={[0.025, 0.025, 1.5, 6]} />
+                    <meshStandardMaterial color="#5a3a1c" roughness={1} />
+                </mesh>
+                {/* Sırt çantası */}
+                <mesh position={[0, 0.95, -0.16]}>
+                    <boxGeometry args={[0.24, 0.3, 0.14]} />
+                    <meshStandardMaterial color="#3d2a14" roughness={1} />
+                </mesh>
+            </group>
+            {/* Yelkenli */}
+            <group ref={ship} scale={0.06} visible={false}>
+                <mesh position={[0, 0.1, 0]} rotation={[0, 0, 0]}>
+                    <boxGeometry args={[0.45, 0.22, 1.2]} />
+                    <meshStandardMaterial color="#5a3a1c" roughness={0.9} />
+                </mesh>
+                <mesh position={[0, 0.75, 0.05]}>
+                    <cylinderGeometry args={[0.03, 0.03, 1.2, 6]} />
+                    <meshStandardMaterial color="#3d2a14" />
+                </mesh>
+                <mesh position={[0, 0.85, 0.12]} rotation={[0, Math.PI / 2, 0]}>
+                    <planeGeometry args={[0.7, 0.8]} />
+                    <meshStandardMaterial color="#efe3c8" side={THREE.DoubleSide} roughness={1} />
+                </mesh>
+            </group>
+            <Html center position={[0, 0.16, 0]} style={{ pointerEvents: 'none' }}>
+                <div className="bg-amber-600/90 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full whitespace-nowrap shadow-[0_0_14px_rgba(245,158,11,0.45)] border border-amber-400/50">
                     YOLCU · <span ref={label}>{TRAVELER_LABEL.plain}</span>
                 </div>
             </Html>
@@ -254,12 +324,14 @@ const SceneContents = ({
     simActive,
     simPosRef,
     simGroundRef,
+    simHeadRef,
 }: {
     settings: QualitySettings;
     props: MapCanvas3DProps;
     simActive: boolean;
     simPosRef: React.MutableRefObject<THREE.Vector3>;
     simGroundRef: React.MutableRefObject<Ground>;
+    simHeadRef: React.MutableRefObject<THREE.Vector3>;
 }) => (
     <>
         <hemisphereLight name="hemi" args={['#fff4dc', '#3a3020', 0.9]} />
@@ -277,7 +349,7 @@ const SceneContents = ({
         <MapMarkers regions={props.regions} onRegionClick={props.onRegionClick} />
         <PersonalPins />
         <MapTravel route={props.travelRoute ?? null} isTravelMode={!!props.isTravelMode} />
-        {simActive && <Traveler posRef={simPosRef} groundRef={simGroundRef} />}
+        {simActive && <Traveler posRef={simPosRef} groundRef={simGroundRef} headRef={simHeadRef} />}
         {props.brushEnabled && <BrushTool />}
 
         {props.isTravelMode && props.onTravelPointAdd && (
@@ -297,6 +369,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
     const [simActive, setSimActive] = useState(false);
     const simPosRef = useRef(new THREE.Vector3());
     const simGroundRef = useRef<Ground>('plain');
+    const simHeadRef = useRef(new THREE.Vector3(1, 0, 0));
     const simulating = useRef(false);
 
     // Kullanıcı devraldı: sinematik geçişi durdur (simülasyon hariç).
@@ -427,6 +500,16 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
         return () => cancelAnimationFrame(id);
     }, [!!settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Yolcu gözünden çık: kontroller açılır, kamera yükselir
+    const leaveEye = () => {
+        const c = controlsRef.current;
+        if (c && !c.enabled) {
+            c.enabled = true;
+            c.minDistance = MIN_DIST;
+            animateTo(c.target.clone().setY(0), 8, undefined, 0.8);
+        }
+    };
+
     useImperativeHandle(props.apiRef, () => ({
         // Pusula: yalnızca kuzeyi yukarı çevir; yakınlık ve konum korunur
         resetRotation: () => {
@@ -439,6 +522,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
             animateTo(new THREE.Vector3(tx, 0, tz), FOCUS_DIST);
         },
         startSimulation: (route, durationSeconds) => {
+            leaveEye();
             tween.current?.kill();
             if (route.samples.length < 2 || route.totalDays <= 0) return;
             simulating.current = true;
@@ -468,16 +552,43 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
                     cursor = p.i;
                     simPosRef.current.set(p.x, p.y, p.z);
                     simGroundRef.current = p.ground;
+                    // Gidiş yönü: biraz ilerideki nokta (yumuşak dönüş)
+                    const q = positionAtDay(route, Math.min(route.totalDays, state.day + Math.max(0.05, route.totalDays * 0.008)), cursor);
+                    const hx = q.x - p.x, hz = q.z - p.z;
+                    if (hx * hx + hz * hz > 1e-8) {
+                        _head.set(hx, 0, hz).normalize();
+                        simHeadRef.current.lerp(_head, 0.15).normalize();
+                    }
                     if (c && cam) {
-                        // Kamera yumuşak takip: hedefi yolcuya doğru çeker (ani sıçrama yok)
-                        const delta = _off.set(p.x - c.target.x, 0, p.z - c.target.z).multiplyScalar(0.12);
-                        c.target.add(delta);
-                        cam.position.add(delta);
-                        c.update();
+                        if (travelView.eye) {
+                            // Yolcu gözü: hemen arkasında, yere yakın, ilerisine bakar
+                            c.enabled = false;
+                            c.minDistance = 0.1;
+                            const h = simHeadRef.current;
+                            // Ağaçların üstünden (ağaç ≈ 0.1-0.2 birim): omuz üstü, biraz geriden; ileriye bakar
+                            _eyeTarget.set(p.x + h.x * 0.35, Math.max(p.y, 0) + 0.06, p.z + h.z * 0.35);
+                            _eyeCam.set(p.x - h.x * 0.7, Math.max(p.y, 0) + 0.38, p.z - h.z * 0.7);
+                            c.target.lerp(_eyeTarget, 0.12);
+                            cam.position.lerp(_eyeCam, 0.12);
+                            cam.lookAt(c.target);
+                        } else {
+                            if (!c.enabled) {
+                                // Yolcu gözünden çıkış: kuşbakışına yumuşakça yüksel
+                                c.enabled = true;
+                                c.minDistance = MIN_DIST;
+                                animateTo(new THREE.Vector3(p.x, 0, p.z), 8, undefined, 0.8);
+                            }
+                            // Kamera yumuşak takip: hedefi yolcuya doğru çeker (ani sıçrama yok)
+                            const delta = _off.set(p.x - c.target.x, 0, p.z - c.target.z).multiplyScalar(0.12);
+                            c.target.add(delta);
+                            cam.position.add(delta);
+                            c.update();
+                        }
                     }
                     invalidate();
                 },
                 onComplete: () => {
+                    leaveEye();
                     dayClock.simDay = null;
                     simulating.current = false;
                     setSimActive(false);
@@ -487,6 +598,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
             });
         },
         stopSimulation: () => {
+            leaveEye();
             dayClock.simDay = null;
             simulating.current = false;
             tween.current?.kill();
@@ -539,7 +651,7 @@ const MapCanvas3D = (props: MapCanvas3DProps & { apiRef?: React.Ref<MapCanvas3DH
                         onUserZoom={handleControlsStart}
                     />
 
-                    <SceneContents settings={settings} props={props} simActive={simActive} simPosRef={simPosRef} simGroundRef={simGroundRef} />
+                    <SceneContents settings={settings} props={props} simActive={simActive} simPosRef={simPosRef} simGroundRef={simGroundRef} simHeadRef={simHeadRef} />
                 </Canvas>
                 )}
             </MapErrorBoundary>

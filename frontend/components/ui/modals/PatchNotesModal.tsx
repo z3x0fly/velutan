@@ -5,7 +5,7 @@ import { X, ChevronRight, Sparkles, Plus, Wrench } from 'lucide-react';
 
 const PatchNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const PATCH_VERSION = '1.7.0';
+    const PATCH_VERSION = '1.7.1';
 
     useEffect(() => {
         // Gizli modda localStorage hata fırlatabilir; o durumda notları göster
@@ -33,6 +33,9 @@ const PatchNotesModal = () => {
             title: 'Eklenenler',
             icon: Plus,
             items: [
+                { title: 'Gerçekçi bulutlar', desc: 'Uzaklaşınca kümülüs bulutları belirir: tepeleri güneşte parlar, altları gri; rüzgârla akar, gölgeleri araziye düşer. Yaklaşınca açılır.' },
+                { title: 'İklime göre dağlar', desc: 'Kuzeyin ve karlı diyarların dağlarında kar aşağıya iner, kaya mavimsi; ılıman dağlarda yalnız zirve karlı; Qasaar çölünün dağlarında kar yok, kaya sıcak tonlu.' },
+                { title: 'Yolcu gözü', desc: "Seyahat simülasyonunda yolcu artık bir figür: karada pelerinli yürüyüşçü, denizde yelkenli. Alttaki düğmeyle 'Yolcu gözü'ne geç: kamera yolcunun arkasından, yere yakın takip eder." },
                 { title: 'velutanmap.com ile senkron', desc: "INTCH'in izniyle velutanmap.com'daki yerler, 360° mekânlar ve wiki kayıtları her 6 saatte bir kendiliğinden geliyor: haritaya 6 yeni yer eklendi (Al'İskad, Del'Gaar, Flarg, Krshil, Qiltareed, Vangud), orada taşınan yer burada da taşınıyor." },
                 { title: 'Velutan Wiki', desc: "Bütün karakterler, yerler, hikâyeler ve 360° mekânlar artık kendi sayfalarında (/kayitlar): okunabilir, paylaşılabilir ve Google'da aranabilir." },
                 { title: 'Her açıdan net 360°', desc: "Mekânlar artık sağda, solda, yukarıda ve aşağıda da net: kenarlarda görüntüyü geren perspektif düzeltildi (balık gözü), büyütülen yerler bikübik örnekleme ve netleştirmeyle çiziliyor." },
@@ -74,6 +77,7 @@ const PatchNotesModal = () => {
             items: [
                 { title: 'Dağlarda ve tepelerde ağaç yok', desc: 'Dağ çizimlerinin çevresinde ve tepelerde hiç ağaç kalmadı; ormanlar ovalarda ve vadilerde.' },
                 { title: 'Yer isimleri', desc: 'İsimler bazı yerlerde havada, bazı yerlerde arazinin içinde kalıyordu; artık harflerin altındaki araziye göre oturuyor.' },
+                { title: 'Rota yollara oturuyor', desc: 'Durak yoldan uzak olsa da rota en uygun yerden yola giriyor, geri dönmüyor; yol kıvrımları yumuşak.' },
                 { title: 'Dağ tepelerinde ağaç', desc: 'Dağların zirvesindeki ağaçlar kaldırıldı; ormanlar eteklerde ve vadilerde.' },
                 { title: 'Kahel ve Willburg', desc: "İki yerin haritadaki konumu velutanmap.com'daki düzeltmeye göre güncellendi." },
                 { title: 'Denizde tekrar eden desen', desc: 'Okyanusta aynı desen kare kare tekrar ediyordu. Dalgalar artık gürültüyle bükülüyor; yönleri ve boyları yerden yere değişiyor, köpük ve parıltı serpiştiriliyor. Altta tekrar eden deniz dokusu da örtüldü.' },

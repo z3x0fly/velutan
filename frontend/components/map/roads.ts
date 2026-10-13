@@ -13,8 +13,8 @@ export interface RoadGraph {
     comp: Int32Array;
 }
 
-/** Durak yola en fazla bu kadar uzaksa (harita pikseli, ≈ 100 km) yola çıkılır */
-const SNAP_PX = 150;
+/** Durak yola en fazla bu kadar uzaksa (harita pikseli, ≈ 185 km) yola çıkılır; yol dışı yürüme yine pahalı sayılır */
+const SNAP_PX = 280;
 /** Yol, düz gidişin bu katından uzunsa (körfezi dolanmak gibi) düz gidilir */
 const MAX_DETOUR = 3;
 
@@ -52,14 +52,49 @@ export function loadRoads(): Promise<RoadGraph> {
     return cached;
 }
 
-function nearest(g: RoadGraph, p: MapPoint) {
-    let best = -1;
-    let bd = Infinity;
+/** Durağa en yakın k düğüm (yola giriş adayları) */
+function nearestK(g: RoadGraph, p: MapPoint, k: number) {
+    const best: { i: number; d: number }[] = [];
     for (let i = 0; i < g.x.length; i++) {
-        const d = (g.x[i] - p.x) ** 2 + (g.y[i] - p.y) ** 2;
-        if (d < bd) (bd = d), (best = i);
+        const d = Math.hypot(g.x[i] - p.x, g.y[i] - p.y);
+        if (d > SNAP_PX) continue;
+        if (best.length < k || d < best[best.length - 1].d) {
+            best.push({ i, d });
+            best.sort((a, b) => a.d - b.d);
+            if (best.length > k) best.pop();
+        }
     }
-    return { i: best, d: Math.sqrt(bd) };
+    return best;
+}
+
+/** Noktanın bir düğümün komşu kenarları üzerindeki en yakın izdüşümü (düğüm yerine kenarın ortasından girilsin) */
+function projectOnRoad(g: RoadGraph, i: number, p: MapPoint) {
+    let best = { x: g.x[i], y: g.y[i], d: Math.hypot(g.x[i] - p.x, g.y[i] - p.y) };
+    for (const j of g.adj[i]) {
+        const ax = g.x[i], ay = g.y[i], bx = g.x[j], by = g.y[j];
+        const vx = bx - ax, vy = by - ay;
+        const t = Math.max(0, Math.min(1, ((p.x - ax) * vx + (p.y - ay) * vy) / (vx * vx + vy * vy || 1)));
+        const x = ax + vx * t, y = ay + vy * t;
+        const d = Math.hypot(x - p.x, y - p.y);
+        if (d < best.d) best = { x, y, d };
+    }
+    return best;
+}
+
+/** Chaikin yumuşatma: köşeli yol kıvrımları yumuşak eğriye döner (uçlar sabit) */
+function smooth(pts: MapPoint[], iterations = 2): MapPoint[] {
+    let out = pts;
+    for (let it = 0; it < iterations; it++) {
+        if (out.length < 3) break;
+        const next: MapPoint[] = [out[0]];
+        for (let k = 0; k < out.length - 1; k++) {
+            const a = out[k], b = out[k + 1];
+            next.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 }, { x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 });
+        }
+        next.push(out[out.length - 1]);
+        out = next;
+    }
+    return out;
 }
 
 const dist = (g: RoadGraph, a: number, b: number) => Math.hypot(g.x[a] - g.x[b], g.y[a] - g.y[b]);
@@ -124,24 +159,38 @@ function shortest(g: RoadGraph, a: number, b: number): number[] | null {
 }
 
 /**
- * İki durak arası yol güzergâhı: durak -> en yakın yol -> yol boyunca -> durağa en yakın yol -> durak.
+ * İki durak arası yol güzergâhı: durak -> yolun en yakın noktası -> yol boyunca -> durağa en yakın nokta -> durak.
+ * Giriş ve çıkış için birkaç aday denenir; toplam en kısa olan seçilir (rota geri dönüp yola girmez).
  * Yol yoksa, duraklardan biri yoldan çok uzaksa ya da yol çok dolambaçlıysa null (düz gidilir).
  * Dönen noktaların `road` işareti o noktaya yol üzerinden varıldığını söyler.
  */
 export function roadLeg(g: RoadGraph, a: MapPoint, b: MapPoint): (MapPoint & { road: boolean })[] | null {
-    const na = nearest(g, a);
-    const nb = nearest(g, b);
-    if (na.d > SNAP_PX || nb.d > SNAP_PX || g.comp[na.i] !== g.comp[nb.i] || na.i === nb.i) return null;
-    const nodes = shortest(g, na.i, nb.i);
-    if (!nodes) return null;
-    let len = na.d + nb.d;
+    const ca = nearestK(g, a, 6);
+    const cb = nearestK(g, b, 6);
+    if (!ca.length || !cb.length) return null;
+    let best: { nodes: number[]; cost: number } | null = null;
+    for (const s of ca) {
+        for (const e of cb) {
+            if (g.comp[s.i] !== g.comp[e.i] || s.i === e.i) continue;
+            const nodes = shortest(g, s.i, e.i);
+            if (!nodes) continue;
+            let len = 0;
+            for (let k = 1; k < nodes.length; k++) len += dist(g, nodes[k - 1], nodes[k]);
+            // Yol dışı kısım daha pahalı (arazide yürümek): en yakın girişe değil, en iyi toplam yola gidilir
+            const cost = len + (s.d + e.d) * 1.6;
+            if (!best || cost < best.cost) best = { nodes, cost };
+        }
+    }
+    if (!best) return null;
+    const nodes = best.nodes;
+    let len = 0;
     for (let k = 1; k < nodes.length; k++) len += dist(g, nodes[k - 1], nodes[k]);
     const direct = Math.hypot(b.x - a.x, b.y - a.y);
     if (len > direct * MAX_DETOUR + 60) return null;
-    // Benekler ~12 px aralıklı; her ikinci yeter (çizgi yine yolu izler)
-    const pts: (MapPoint & { road: boolean })[] = [];
-    nodes.forEach((v, k) => {
-        if (k % 2 === 0 || k === nodes.length - 1) pts.push({ x: g.x[v], y: g.y[v], road: k > 0 });
-    });
-    return pts;
+    // Uçlar: yolun durağa en yakın noktası (kenar üstünden)
+    const enter = projectOnRoad(g, nodes[0], a);
+    const exit = projectOnRoad(g, nodes[nodes.length - 1], b);
+    const raw: MapPoint[] = [{ x: enter.x, y: enter.y }, ...nodes.slice(1, -1).map((v) => ({ x: g.x[v], y: g.y[v] })), { x: exit.x, y: exit.y }];
+    const pts = smooth(raw);
+    return pts.map((p, k) => ({ x: p.x, y: p.y, road: k > 0 }));
 }

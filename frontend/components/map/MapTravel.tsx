@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { GROUND_COLOR, RouteAnalysis } from './travelAnalysis';
+import { useTravelEye } from './travelView';
 
 interface MapTravelProps {
     route: RouteAnalysis | null;
@@ -28,6 +29,7 @@ const MapTravel: React.FC<MapTravelProps> = ({ route, isTravelMode }) => {
         return { pts, colors, nodes };
     }, [route]);
 
+    const eye = useTravelEye();
     if (!isTravelMode || !data) return null;
     const { pts, colors, nodes } = data;
 
@@ -35,8 +37,8 @@ const MapTravel: React.FC<MapTravelProps> = ({ route, isTravelMode }) => {
         <group>
             {pts.length > 1 && (
                 <>
-                    {/* Sırt arkasında kalan kısım: derinlik testi yok, soluk */}
-                    <Line points={pts} color="#ffb347" lineWidth={2} transparent opacity={0.28} depthTest={false} renderOrder={30} />
+                    {/* Sırt arkasında kalan kısım: derinlik testi yok, soluk (yolcu gözünde gizli: yerden bakınca çizgi olur) */}
+                    {!eye && <Line points={pts} color="#ffb347" lineWidth={2} transparent opacity={0.28} depthTest={false} renderOrder={30} />}
                     <Line points={pts} color="#1a0f05" lineWidth={8} transparent opacity={0.45} />
                     <Line points={pts} vertexColors={colors} lineWidth={5} />
                     <Line points={pts} color="#fff3d6" lineWidth={1.6} dashed dashSize={0.12} gapSize={0.09} />
